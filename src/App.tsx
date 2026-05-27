@@ -8,11 +8,6 @@ import {
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 
-import {
-  sendMessageToGemini,
-  buildChatHistory,
-} from './services/geminiService';
-
 import { supabase } from './lib/supabase';
 
 import { checkSubscription } from './lib/checkSubscription';
@@ -154,28 +149,39 @@ function App() {
     setIsLoading(true);
 
     try {
-      const chatHistory =
-        buildChatHistory(
-          [...messages, userMessage].map(
-            (msg) => ({
-              text: msg.text,
-              isBot: msg.isBot,
-            })
-          )
-        );
+      // Formata o histórico de mensagens no padrão esperado pelo seu servidor backend
+      const chatHistory = messages.map((msg) => ({
+        role: msg.isBot ? 'assistant' : 'user',
+        content: msg.text,
+      }));
 
-      const response =
-        await sendMessageToGemini(
-          text,
-          chatHistory
-        );
+      // Faz a chamada direta para o seu servidor web ativo no Render
+      const response = await fetch('https://clinical-ai-chatbot.onrender.com/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: text,
+          history: chatHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha na resposta do servidor.');
+      }
+
+      const data = await response.json();
+      
+      // Captura o texto retornado pela inteligência artificial
+      const botResponseText = data.response || data.text || 'Sem resposta cadastrada.';
 
       const botMessage: Message = {
         id: (
           Date.now() + 1
         ).toString(),
 
-        text: response,
+        text: botResponseText,
 
         isBot: true,
 
@@ -195,7 +201,7 @@ function App() {
         ).toString(),
 
         text:
-          'Erro ao processar mensagem.',
+          'Erro ao processar mensagem. Verifique a conexão com o servidor.',
 
         isBot: true,
 
