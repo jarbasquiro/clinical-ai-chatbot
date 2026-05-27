@@ -15,27 +15,20 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
-// Rota principal para o Render validar o serviço
-app.get('/', (req, res) => {
-  res.send('🚀 Clinical AI Chatbot - Servidor Backend Ativo e Rodando na Web!');
-});
 
-// Configuração de Porta e Host conforme a documentação do Render
-const port = process.env.PORT || 10000;
-
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Servidor público rodando perfeitamente na porta ${port}`);
-});
-
+// Middlewares obrigatórios de segurança e parsing de dados
 app.use(cors());
 app.use(express.json());
 
-// 3. Configuração do Groq
+// 3. Serve os arquivos estáticos da interface visual do chat (HTML, CSS, JS do React/Vite)
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// 4. Configuração do Groq
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// 4. Sistema de busca na base de conhecimento local
+// 5. Sistema de busca na base de conhecimento local (.txt)
 function searchKnowledge(question) {
   const knowledgePath = path.join(__dirname, "knowledge");
   
@@ -62,7 +55,7 @@ function searchKnowledge(question) {
   return relevantContent;
 }
 
-// 5. Rota do Chatbot Clínico
+// 6. Rota da API do Chatbot Clínico
 app.post("/chat", async (req, res) => {
   try {
     const { message, history } = req.body;
@@ -91,11 +84,11 @@ ${knowledgeBase}
 
 REGRAS IMPORTANTES:
 - Responda de forma prática.
-- Seja rápido e objective.
+- Seja rápido e objetivo.
 - Organize em tópicos.
 - Foque em aplicação clínica.
 - Evite textos longos.
-- Não explique teoria excessive.
+- Não explique teoria excessiva.
 - Nunca invente diagnósticos.
 - Nunca substitua médicos.
 - Nunca prescreva medicamentos.
@@ -122,8 +115,10 @@ As respostas devem parecer um guia rápido clínico.
       max_tokens: 500,
     });
 
+    // Ajustado para retornar "response" ou "reply", casando com o fetch do seu App.tsx
     res.json({
       reply: completion.choices[0].message.content,
+      response: completion.choices[0].message.content
     });
   } catch (error) {
     console.error(error);
@@ -131,7 +126,7 @@ As respostas devem parecer um guia rápido clínico.
   }
 });
 
-// 6. Rota do Webhook da Kiwify
+// 7. Rota do Webhook da Kiwify
 app.post('/kiwify-webhook', async (req, res) => {
   try {
     const data = req.body;
@@ -161,8 +156,13 @@ app.post('/kiwify-webhook', async (req, res) => {
   }
 });
 
-// 7. Inicialização do Servidor na Porta Dinâmica do Render
-const PORT = process.env.PORT || 3001;
+// 8. Rota Curinga: Qualquer link acessado na URL principal vai carregar o visual do Chat
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+// 9. Inicialização Única do Servidor na Porta e Host corretos exigidos pelo Render
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor público rodando perfeitamente na porta ${PORT}`);
 });
