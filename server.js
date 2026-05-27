@@ -6,30 +6,15 @@ const path = require("path");
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require("groq-sdk");
 
-// Diagnóstico rigoroso para rastrear as chaves no Render
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
-
-console.log("=== DIAGNÓSTICO DE INICIALIZAÇÃO ===");
-console.log("- URL do Supabase carregada:", supabaseUrl ? "SIM (Preenchida)" : "NÃO (Vazia)");
-console.log("- Chave do Supabase carregada:", supabaseKey ? "SIM (Preenchida)" : "NÃO (Vazia)");
-console.log("====================================");
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("ERRO CRÍTICO: O servidor vai cair porque falta uma das chaves do Supabase no ambiente.");
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve os arquivos do frontend
+// Serve os arquivos do frontend da pasta dist
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+  apiKey: process.env.GROQ_API_KEY || "CHAVE_RESERVA",
 });
 
 function searchKnowledge(question) {
@@ -78,6 +63,13 @@ app.post("/chat", async (req, res) => {
 
 app.post('/kiwify-webhook', async (req, res) => {
   try {
+    // Inicialização sob demanda apenas quando o webhook for chamado
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) return res.status(500).send('Erro de configuração');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const data = req.body;
     const email = data.Customer?.email;
     if (!email) return res.status(400).send('Email não encontrado');
@@ -88,7 +80,7 @@ app.post('/kiwify-webhook', async (req, res) => {
   }
 });
 
-// Rota Curinga padrão do Express v4 - Abre a interface do chat direto
+// Entrega o HTML do chat direto
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
