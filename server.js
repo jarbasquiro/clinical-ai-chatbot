@@ -15,6 +15,18 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
+// Rota principal para o Render validar o serviço
+app.get('/', (req, res) => {
+  res.send('🚀 Clinical AI Chatbot - Servidor Backend Ativo e Rodando na Web!');
+});
+
+// Configuração de Porta e Host conforme a documentação do Render
+const port = process.env.PORT || 10000;
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Servidor público rodando perfeitamente na porta ${port}`);
+});
+
 app.use(cors());
 app.use(express.json());
 

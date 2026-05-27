@@ -1,11 +1,11 @@
 {
-  "name": "clinical-ai-chatbot-root",
+  "name": "clinical-ai-chatbot-web",
   "private": true,
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
-    "build": "cd server && npm install",
-    "start": "node server/server.js"
+    "start": "node server.js",
+    "build": "echo 'Pronto para rodar na web'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
