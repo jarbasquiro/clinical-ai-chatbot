@@ -1,3 +1,15 @@
+// 1. IMPORTAR E CONFIGURAR O DOTENV LOGO NA PRIMEIRA LINHA
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+
+// 2. VERIFIQUE SE A IMPORTAÇÃO DO SUPABASE ESTÁ ASSIM:
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 const { createClient } = require('@supabase/supabase-js');
 const express = require("express");
 const fs = require("fs");
