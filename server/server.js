@@ -158,8 +158,11 @@ app.post('/kiwify-webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+// O Render define a porta automaticamente através de process.env.PORT
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () => {
+// É OBRIGATÓRIO incluir o '0.0.0.0' para o Render funcionar no plano gratuito
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
