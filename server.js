@@ -115,7 +115,7 @@ As respostas devem parecer um guia rápido clínico.
       max_tokens: 500,
     });
 
-    // Ajustado para retornar "response" ou "reply", casando com o fetch do seu App.tsx
+    // Retorna tanto "reply" quanto "response" para garantir compatibilidade com o frontend
     res.json({
       reply: completion.choices[0].message.content,
       response: completion.choices[0].message.content
@@ -156,12 +156,12 @@ app.post('/kiwify-webhook', async (req, res) => {
   }
 });
 
-// 8. Rota Curinga: Qualquer link acessado na URL principal vai carregar o visual do Chat
-app.get('*', (req, res) => {
+// 8. Rota Curinga corrigida para o Express v5 (captura qualquer caminho para o React gerenciar)
+app.get('/:splat*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// 9. Inicialização Única do Servidor na Porta e Host corretos exigidos pelo Render
+// 9. Inicialização do Servidor na Porta e Host exigidos pelo Render
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor público rodando perfeitamente na porta ${PORT}`);
