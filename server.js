@@ -6,13 +6,17 @@ const path = require("path");
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require("groq-sdk");
 
-// AJUSTE: Lê as variáveis com o nome exato que está no painel do Render agora
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+// Diagnóstico rigoroso para rastrear as chaves no Render
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 
-// Proteção caso falte alguma chave no painel do Render
+console.log("=== DIAGNÓSTICO DE INICIALIZAÇÃO ===");
+console.log("- URL do Supabase carregada:", supabaseUrl ? "SIM (Preenchida)" : "NÃO (Vazia)");
+console.log("- Chave do Supabase carregada:", supabaseKey ? "SIM (Preenchida)" : "NÃO (Vazia)");
+console.log("====================================");
+
 if (!supabaseUrl || !supabaseKey) {
-  console.error("ERRO CRÍTICO: Variáveis do Supabase não foram encontradas no ambiente!");
+  console.error("ERRO CRÍTICO: O servidor vai cair porque falta uma das chaves do Supabase no ambiente.");
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
