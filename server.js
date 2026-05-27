@@ -6,8 +6,15 @@ const path = require("path");
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require("groq-sdk");
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+// AJUSTE: Lê as variáveis com o nome exato que está no painel do Render agora
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+
+// Proteção caso falte alguma chave no painel do Render
+if (!supabaseUrl || !supabaseKey) {
+  console.error("ERRO CRÍTICO: Variáveis do Supabase não foram encontradas no ambiente!");
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
