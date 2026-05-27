@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // OBRIGA O NAVEGADOR A ENCONTRAR O DESIGN EM QUALQUER SERVIDOR
   plugins: [
     react(),
 
