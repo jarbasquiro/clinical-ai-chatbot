@@ -19,7 +19,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
-// Localiza a pasta onde os arquivos públicos e imagens estão guardados
 const caminhosDist = [
   path.join(baseDir, "dist"),
   path.join(baseDir, "project", "dist"),
@@ -35,11 +34,9 @@ for (const caminho of caminhosDist) {
   }
 }
 
-// Serve a foto da logo e outros arquivos para o navegador conseguir ler
 if (pastaDistEfetiva) {
   app.use(express.static(pastaDistEfetiva));
 }
-// Garante o acesso à pasta public caso esteja rodando fora do build
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
@@ -61,7 +58,8 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um assistente virtual especialista em quiropraxia, massoterapia e recuperação de mobilidade. Ajude o profissional Jarbas de forma técnica, clara e prestativa. IMPORTANTE: Sempre organize suas respostas separando os parágrafos, tópicos e itens numerados com uma linha em branco para garantir uma leitura espacial e limpa." 
+          // AJUSTADO: Instrução cirúrgica para a IA entender que atende o PACIENTE do Jarbas
+          content: "Você é o CLINIC-AI, o assistente virtual oficial do consultório do Jarbas (@jarbasquiro), renomado Massoterapeuta e Quiropraxista. Você está conversando com um PACIENTE ou CLIENTE do consultório. Seu papel é receber essa pessoa de forma acolhedora, educada e profissional, tirar dúvidas sobre as terapias (quiropraxia, massoterapia, alívio de dores, melhora de mobilidade) e ajudá-la com informações sobre agendamentos. Nunca diga que está ajudando o 'senhor Jarbas no trabalho dele', diga que você representa a clínica do Jarbas. Sempre organize suas respostas separando os parágrafos e tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -104,7 +102,8 @@ app.get("*", (req, res) => {
             </div>
             
             <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-base sm:text-sm space-y-3 min-h-[180px] max-h-[58vh] sm:max-h-[350px]">
-                <div class="text-slate-300"><strong>Assistente:</strong> Olá, Jarbas! O chatbot está online e pronto para operar. Como posso te ajudar com os agendamentos ou fichas clínicas hoje?</div>
+                <!-- AJUSTADO: Mensagem inicial de boas-vindas genérica e profissional para qualquer usuário -->
+                <div class="text-slate-300"><strong>Assistente:</strong> Olá! Seja muito bem-vindo ao suporte virtual do consultório @jarbasquiro. Como posso te ajudar com dúvidas, agendamentos de quiropraxia ou sessões de massoterapia hoje?</div>
             </div>
 
             <div class="flex gap-2 w-full items-center">
@@ -136,13 +135,13 @@ app.get("*", (req, res) => {
                 try {
                     const urlAcesso = window.location.origin + '/api/chat';
                     
-                    const respuesta = await fetch(urlAcesso, {
+                    const resposta = await fetch(urlAcesso, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: texto })
                     });
                     
-                    const dados = await respuesta.json();
+                    const dados = await reply = await resposta.json();
                     
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
