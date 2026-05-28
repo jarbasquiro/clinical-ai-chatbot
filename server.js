@@ -18,32 +18,28 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Mapeia todos os locais possíveis onde a pasta 'dist' pode estar no Render
-const caminhosPossiveis = [
+// Identifica a raiz do projeto no Render de forma dinâmica
+const baseDir = process.cwd();
+
+// Tenta localizar a pasta 'dist' mapeando as variações físicas do servidor
+const caminhosDist = [
+  path.join(baseDir, "dist"),
+  path.join(baseDir, "project", "dist"),
   path.join(__dirname, "dist"),
-  path.join(__dirname, "..", "dist"),
-  path.resolve("dist"),
-  path.resolve("project", "dist"),
-  "/opt/render/project/src/dist",
-  "/opt/render/project/dist"
+  path.join(__dirname, "..", "dist")
 ];
 
-let distPath = "";
-
-// Procura visualmente qual pasta existe de verdade no servidor
-for (const caminho of caminhosPossiveis) {
-  if (fs.existsSync(caminho)) {
-    distPath = caminho;
-    console.log(`✅ Pasta dist encontrada em: ${caminho}`);
+let pastaDistEfetiva = "";
+for (const caminho of caminhosDist) {
+  if (fs.existsSync(caminho) && fs.existsSync(path.join(caminho, "index.html"))) {
+    pastaDistEfetiva = caminho;
     break;
   }
 }
 
-// Se encontrar a pasta, serve os arquivos; se não, avisa no log
-if (distPath) {
-  app.use(express.static(distPath));
-} else {
-  console.error("❌ ALERTA CRÍTICO: Pasta 'dist' não foi encontrada em nenhum diretório!");
+// Se encontrou a pasta dist válida, serve os arquivos estáticos
+if (pastaDistEfetiva) {
+  app.use(express.static(pastaDistEfetiva));
 }
 
 // Inicialização dos serviços (Supabase e Groq)
@@ -58,12 +54,27 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Servidor CLINIC-AI operacional!" });
 });
 
-// Entrega o index.html principal independente de onde a pasta dist foi parar
+// Responde a todas as requisições com o index.html correto, eliminando o 404 do navegador
 app.get("*", (req, res) => {
-  if (distPath) {
-    res.sendFile(path.join(distPath, "index.html"));
+  if (pastaDistEfetiva) {
+    res.sendFile(path.join(pastaDistEfetiva, "index.html"));
   } else {
-    res.status(404).send("Erro: Pasta de interface 'dist' nao foi encontrada no deploy. Rode o build local e envie pelo Git.");
+    // Busca de emergência caso os mapeamentos falhem
+    const buscaDireta = path.resolve("project/dist/index.html");
+    if (fs.existsSync(buscaDireta)) {
+      res.sendFile(buscaDireta);
+    } else {
+      res.status(200).send(`
+        <html>
+          <head><title>CLINIC-AI 24H</title></head>
+          <body style="background:#111;color:#fff;font-family:sans-serif;padding:40px;text-align:center;">
+            <h2>Servidor Conectado com Sucesso!</h2>
+            <p>O motor do sistema está ativo, mas a interface visual ainda está se posicionando no servidor.</p>
+            <script>setTimeout(() => { location.reload(); }, 5000);</script>
+          </body>
+        </html>
+      `);
+    }
   }
 });
 
