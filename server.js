@@ -65,19 +65,18 @@ app.get("*", (req, res) => {
         <div class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex flex-col justify-between text-center transition-all duration-300">
             
             <div>
-                <div class="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/20">
-                    <span class="text-xl sm:text-2xl font-bold">🤖</span>
+                <!-- LOGOMARCA NOVA SUBSTITUINDO O ROBOZINHO ANTIGO -->
+                <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20">
+                    <img src="https://files.oaiusercontent.com/file-VvW7k0g21qL85b7b1bB6yC?se=2026-05-28T14%3A25%3A32Z&sp=r&sv=2023-11-03&sr=b&rscc=max-age%3D31536000%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dimage_cafe6a.png&sig=4LwHkI7L8w1W8m764MshfMvS1lV8hJ9lZfXU8zL0Tsk%3D" alt="CLINIC-AI 24H" class="w-full h-full object-cover">
                 </div>
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-4">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
             </div>
             
-            <!-- Aumentado o tamanho da fonte base para text-base no mobile (sm:text-sm no PC) -->
             <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-base sm:text-sm space-y-3 min-h-[180px] max-h-[58vh] sm:max-h-[350px]">
                 <div class="text-slate-300"><strong>Assistente:</strong> Olá, Jarbas! O chatbot está online e pronto para operar. Como posso te ajudar com os agendamentos ou fichas clínicas hoje?</div>
             </div>
 
-            <!-- Ajustado o input e o botão para fontes mais confortáveis e botões mais robustos no toque do celular -->
             <div class="flex gap-2 w-full items-center">
                 <input type="text" id="user-input" placeholder="Digite sua mensagem..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-base sm:text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-600" onkeypress="if(event.key === 'Enter') enviarMensagem()">
                 <button onclick="enviarMensagem()" id="btn-enviar" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-lg text-base sm:text-sm transition disabled:opacity-50 shrink-0">Enviar</button>
@@ -97,7 +96,6 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                // Forçado o tamanho do texto inserido dinamicamente para manter o padrão maior (text-base no mobile)
                 container.innerHTML += \`<div class="text-slate-100 text-right text-base sm:text-sm bg-slate-850 p-2.5 rounded-lg inline-block float-right clear-both max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div>\`;
                 container.scrollTop = container.scrollHeight;
 
