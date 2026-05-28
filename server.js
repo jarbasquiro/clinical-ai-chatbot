@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import { Groq } from "groq-sdk";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
 
 dotenv.config();
 
@@ -11,6 +14,34 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const baseDir = process.cwd();
+
+// Localiza a pasta onde os arquivos públicos e imagens estão guardados
+const caminhosDist = [
+  path.join(baseDir, "dist"),
+  path.join(baseDir, "project", "dist"),
+  path.join(__dirname, "dist"),
+  path.join(__dirname, "..", "dist")
+];
+
+let pastaDistEfetiva = "";
+for (const caminho of caminhosDist) {
+  if (fs.existsSync(caminho) && fs.existsSync(path.join(caminho, "index.html"))) {
+    pastaDistEfetiva = caminho;
+    break;
+  }
+}
+
+// Serve a foto da logo e outros arquivos para o navegador conseguir ler
+if (pastaDistEfetiva) {
+  app.use(express.static(pastaDistEfetiva));
+}
+// Garante o acesso à pasta public caso esteja rodando fora do build
+app.use(express.static(path.join(baseDir, "public")));
+app.use(express.static(path.join(baseDir, "project", "public")));
 
 const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
 const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
@@ -65,9 +96,8 @@ app.get("*", (req, res) => {
         <div class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex flex-col justify-between text-center transition-all duration-300">
             
             <div>
-                <!-- LOGOMARCA NOVA SUBSTITUINDO O ROBOZINHO ANTIGO -->
-                <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20">
-                    <img src="https://files.oaiusercontent.com/file-VvW7k0g21qL85b7b1bB6yC?se=2026-05-28T14%3A25%3A32Z&sp=r&sv=2023-11-03&sr=b&rscc=max-age%3D31536000%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dimage_cafe6a.png&sig=4LwHkI7L8w1W8m764MshfMvS1lV8hJ9lZfXU8zL0Tsk%3D" alt="CLINIC-AI 24H" class="w-full h-full object-cover">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20 bg-slate-950 flex items-center justify-center">
+                    <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
                 </div>
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-4">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
@@ -106,13 +136,13 @@ app.get("*", (req, res) => {
                 try {
                     const urlAcesso = window.location.origin + '/api/chat';
                     
-                    const resposta = await fetch(urlAcesso, {
+                    const respuesta = await fetch(urlAcesso, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: texto })
                     });
                     
-                    const dados = await resposta.json();
+                    const dados = await respuesta.json();
                     
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
