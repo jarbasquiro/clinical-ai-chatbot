@@ -9,7 +9,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Libera totalmente o CORS para não barrar as requisições do chat
 app.use(cors());
 app.use(express.json());
 
@@ -19,7 +18,7 @@ const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
 
-// ROTA DA IA CORRIGIDA
+// ROTA DA IA COM MODELO ATUALIZADO
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -28,6 +27,7 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
+    // Alterado para o modelo estável e atualizado: llama-3.1-8b-instant
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -36,14 +36,15 @@ app.post("/api/chat", async (req, res) => {
         },
         { role: "user", content: message }
       ],
-      model: "llama3-8b-8192",
+      model: "llama-3.1-8b-instant", 
     });
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     res.json({ response: respostaIA });
   } catch (error) {
     console.error("Erro interno na API do Groq:", error);
-    res.status(500).json({ error: "Erro ao processar mensagem na IA." });
+    // Devolve o erro mastigado na tela caso o Groq rejeite o sinal
+    res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
   }
 });
 
@@ -94,15 +95,14 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="text-slate-100 text-right"><strong>Você:</strong> \${texto}</div>\`;
+                container.innerHTML += \`<div class="text-slate-100 text-right text-xs bg-slate-850 p-2 rounded-lg inline-block float-right clear-both max-w-[80%] my-1 border border-slate-800"><strong>Você:</strong> \${texto}</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse"><strong>Assistente:</strong> Pensando...</div>\`;
+                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pensando...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
-                    // Força o fetch a usar a URL absoluta correta do seu deploy no Render
                     const urlAcesso = window.location.origin + '/api/chat';
                     
                     const resposta = await fetch(urlAcesso, {
@@ -112,20 +112,21 @@ app.get("*", (req, res) => {
                     });
                     
                     const dados = await resposta.json();
-                    document.getElementById(digitandoId).remove();
+                    
+                    const elTyping = document.getElementById(digitandoId);
+                    if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div class="text-blue-300"><strong>Assistente:</strong> \${dados.response}</div>\`;
+                        container.innerHTML += \`<div class="text-blue-300 bg-slate-900/50 p-2 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong> \${dados.response}</div>\`;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
-                        container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Resposta inválida do servidor.</div>\`;
+                        container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
                 } catch (erro) {
-                    if(document.getElementById(digitandoId)) {
-                        document.getElementById(digitandoId).remove();
-                    }
-                    container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
+                    const elTyping = document.getElementById(digitandoId);
+                    if(elTyping) elTyping.remove();
+                    container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
                 }
 
                 input.disabled = false;
