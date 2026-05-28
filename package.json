@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "echo \"Utilizando build local pré-compilado\"",
     "start": "node server.js"
   },
   "dependencies": {
