@@ -9,17 +9,17 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Libera totalmente o CORS para não barrar as requisições do chat
 app.use(cors());
 app.use(express.json());
 
-// Chaves reais do ecossistema
 const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
 const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
 
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
 
-// ROTA DA INTELIGÊNCIA ARTIFICIAL: Processa a conversa
+// ROTA DA IA CORRIGIDA
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -28,7 +28,6 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // Chamada real para a API do Groq usando o modelo Llama 3
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -41,12 +40,9 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
-
-    // Opcional: Aqui você pode salvar no Supabase futuramente se desejar logs
-    
     res.json({ response: respostaIA });
   } catch (error) {
-    console.error("Erro na API:", error);
+    console.error("Erro interno na API do Groq:", error);
     res.status(500).json({ error: "Erro ao processar mensagem na IA." });
   }
 });
@@ -55,7 +51,6 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Entrega a interface com a lógica ativa de envio de mensagens
 app.get("*", (req, res) => {
   res.setHeader("Content-Type", "text/html");
   res.status(200).send(`
@@ -95,45 +90,44 @@ app.get("*", (req, res) => {
 
                 if (!texto) return;
 
-                // Bloqueia interações enquanto espera a IA
                 input.value = '';
                 input.disabled = true;
                 btn.disabled = true;
 
-                // Adiciona a mensagem do usuário na tela
                 container.innerHTML += \`<div class="text-slate-100 text-right"><strong>Você:</strong> \${texto}</div>\`;
                 container.scrollTop = container.scrollHeight;
 
-                // Adiciona indicador de digitando
                 const digitandoId = 'typing-' + Date.now();
                 container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse"><strong>Assistente:</strong> Pensando...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
-                    // Envia para a nossa API no backend
-                    const resposta = await fetch('/api/chat', {
+                    // Força o fetch a usar a URL absoluta correta do seu deploy no Render
+                    const urlAcesso = window.location.origin + '/api/chat';
+                    
+                    const resposta = await fetch(urlAcesso, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: texto })
                     });
                     
-                    const dados = await respuesta.json();
-                    
-                    // Remove o indicador de digitando
+                    const dados = await resposta.json();
                     document.getElementById(digitandoId).remove();
 
-                    // Insere a resposta real da IA
                     if (dados.response) {
                         container.innerHTML += \`<div class="text-blue-300"><strong>Assistente:</strong> \${dados.response}</div>\`;
+                    } else if (dados.error) {
+                        container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
-                        container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Erro ao obter resposta.</div>\`;
+                        container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Resposta inválida do servidor.</div>\`;
                     }
                 } catch (erro) {
-                    document.getElementById(digitandoId).remove();
-                    container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Erro de conexão com o servidor.</div>\`;
+                    if(document.getElementById(digitandoId)) {
+                        document.getElementById(digitandoId).remove();
+                    }
+                    container.innerHTML += \`<div class="text-red-400"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
                 }
 
-                // Libera os campos de volta
                 input.disabled = false;
                 btn.disabled = false;
                 input.focus();
