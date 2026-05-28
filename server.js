@@ -58,7 +58,6 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          // AJUSTADO: Instrução cirúrgica para a IA entender que atende o PACIENTE do Jarbas
           content: "Você é o CLINIC-AI, o assistente virtual oficial do consultório do Jarbas (@jarbasquiro), renomado Massoterapeuta e Quiropraxista. Você está conversando com um PACIENTE ou CLIENTE do consultório. Seu papel é receber essa pessoa de forma acolhedora, educada e profissional, tirar dúvidas sobre as terapias (quiropraxia, massoterapia, alívio de dores, melhora de mobilidade) e ajudá-la com informações sobre agendamentos. Nunca diga que está ajudando o 'senhor Jarbas no trabalho dele', diga que você representa a clínica do Jarbas. Sempre organize suas respostas separando os parágrafos e tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
@@ -102,7 +101,6 @@ app.get("*", (req, res) => {
             </div>
             
             <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-base sm:text-sm space-y-3 min-h-[180px] max-h-[58vh] sm:max-h-[350px]">
-                <!-- AJUSTADO: Mensagem inicial de boas-vindas genérica e profissional para qualquer usuário -->
                 <div class="text-slate-300"><strong>Assistente:</strong> Olá! Seja muito bem-vindo ao suporte virtual do consultório @jarbasquiro. Como posso te ajudar com dúvidas, agendamentos de quiropraxia ou sessões de massoterapia hoje?</div>
             </div>
 
@@ -141,7 +139,8 @@ app.get("*", (req, res) => {
                         body: JSON.stringify({ message: texto })
                     });
                     
-                    const dados = await reply = await resposta.json();
+                    // LINHA CORRIGIDA: Removido o xereta
+                    const dados = await resposta.json();
                     
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
