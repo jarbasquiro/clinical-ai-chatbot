@@ -58,7 +58,8 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, o assistente virtual oficial do consultório do Jarbas (@jarbasquiro), renomado Massoterapeuta e Quiropraxista. Você está conversando com um PACIENTE ou CLIENTE do consultório. Seu papel é receber essa pessoa de forma acolhedora, educada e profissional, tirar dúvidas sobre as terapias (quiropraxia, massoterapia, alívio de dores, melhora de mobilidade) e ajudá-la com informações sobre agendamentos. Nunca diga que está ajudando o 'senhor Jarbas no trabalho dele', diga que você representa a clínica do Jarbas. Sempre organize suas respostas separando os parágrafos e tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          // CORREÇÃO CRÍTICA: IA agora sabe que é uma ferramenta de pesquisa acadêmica/técnica e ignora agendamentos
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para manter a leitura limpa." 
         },
         { role: "user", content: message }
       ],
@@ -101,11 +102,12 @@ app.get("*", (req, res) => {
             </div>
             
             <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-base sm:text-sm space-y-3 min-h-[180px] max-h-[58vh] sm:max-h-[350px]">
-                <div class="text-slate-300"><strong>Assistente:</strong> Olá! Seja muito bem-vindo ao suporte virtual do consultório @jarbasquiro. Como posso te ajudar com dúvidas, agendamentos de quiropraxia ou sessões de massoterapia hoje?</div>
+                <!-- MENSAGEM INICIAL CORRIGIDA PARA FOCO EM ALUNOS E ACADEMIA -->
+                <div class="text-slate-300"><strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?</div>
             </div>
 
             <div class="flex gap-2 w-full items-center">
-                <input type="text" id="user-input" placeholder="Digite sua mensagem..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-base sm:text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-600" onkeypress="if(event.key === 'Enter') enviarMensagem()">
+                <input type="text" id="user-input" placeholder="Pesquise um protocolo ou técnica..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-base sm:text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-600" onkeypress="if(event.key === 'Enter') enviarMensagem()">
                 <button onclick="enviarMensagem()" id="btn-enviar" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-lg text-base sm:text-sm transition disabled:opacity-50 shrink-0">Enviar</button>
             </div>
         </div>
@@ -127,7 +129,7 @@ app.get("*", (req, res) => {
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> Pensando...</div>\`;
+                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -139,7 +141,6 @@ app.get("*", (req, res) => {
                         body: JSON.stringify({ message: texto })
                     });
                     
-                    // LINHA CORRIGIDA: Removido o xereta
                     const dados = await resposta.json();
                     
                     const elTyping = document.getElementById(digitandoId);
