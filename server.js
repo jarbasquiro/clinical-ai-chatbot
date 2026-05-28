@@ -30,7 +30,6 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          // Ajustado o comando do sistema para exigir espaçamento legível
           content: "Você é o CLINIC-AI, um assistente virtual especialista em quiropraxia, massoterapia e recuperação de mobilidade. Ajude o profissional Jarbas de forma técnica, clara e prestativa. IMPORTANTE: Sempre organize suas respostas separando os parágrafos, tópicos e itens numerados com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
@@ -66,12 +65,12 @@ app.get("*", (req, res) => {
             <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
                 <span class="text-2xl font-bold">🤖</span>
             </div>
-            <h1 class="text-2xl font-bold text-blue-500 mb-2">CLINIC-AI 24H</h1>
-            <p class="text-slate-400 text-sm mb-6">Interface conectada diretamente ao servidor em nuvem.</p>
+            <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
             
-            <!-- ADICIONADO 'white-space: pre-wrap;' PARA MANTER AS QUEBRAS DE LINHA DO TEXTO -->
+            <!-- Assinatura profissional personalizada substituindo o texto antigo -->
+            <p class="text-slate-400 text-sm font-medium mb-6">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
+            
             <div id="chat-container" style="white-space: pre-wrap;" class="border border-slate-800 bg-slate-950 rounded-xl p-4 h-84 overflow-y-auto mb-4 text-left text-sm space-y-3 min-h-[260px] max-h-[300px]">
-                <div class="text-blue-400 text-xs border-b border-slate-900 pb-1"><strong>Sistema:</strong> Conectado ao banco de dados Supabase com sucesso.</div>
                 <div class="text-slate-300"><strong>Assistente:</strong> Olá, Jarbas! O chatbot está online e pronto para operar. Como posso te ajudar com os agendamentos ou fichas clínicas hoje?</div>
             </div>
 
@@ -94,7 +93,7 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="text-slate-100 text-right text-xs bg-slate-850 p-2 rounded-lg inline-block float-right clear-both max-w-[80%] my-1 border border-slate-800"><strong>Você:</strong> \... \${texto}</div>\`;
+                container.innerHTML += \`<div class="text-slate-100 text-right text-xs bg-slate-850 p-2 rounded-lg inline-block float-right clear-both max-w-[80%] my-1 border border-slate-800"><strong>Você:</strong> \${texto}</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
