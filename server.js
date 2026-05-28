@@ -19,7 +19,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
-// Mapeamento fisico dos caminhos da pasta dist
 const caminhosDist = [
   path.join(baseDir, "dist"),
   path.join(baseDir, "project", "dist"),
@@ -35,74 +34,26 @@ for (const caminho of caminhosDist) {
   }
 }
 
-// Configuracoes e chaves estaticas do Supabase para injecao forcada
-const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
-
-// Inicializacao estavel do Backend
-const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
-
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Servidor CLINIC-AI operacional!" });
-});
-
-// INTERCEPTADOR CIRURGICO: Modifica o JavaScript antes dele chegar ao navegador
-app.get("*/assets/index-*.js", (req, res) => {
-  const nomeArquivo = path.basename(req.path);
-  const caminhoScript = path.join(pastaDistEfetiva, "assets", nomeArquivo);
-
-  if (fs.existsSync(caminhoScript)) {
-    let conteudoJs = fs.readFileSync(caminhoScript, "utf8");
-    
-    // Sobrescreve as chamadas de ambiente injetando a string real
-    conteudoJs = conteudoJs.replace(/import\.meta\.env\.VITE_SUPABASE_URL/g, `'${URL_REAL}'`);
-    conteudoJs = conteudoJs.replace(/import\.meta\.env\.VITE_SUPABASE_ANON_KEY/g, `'${KEY_REAL}'`);
-    conteudoJs = conteudoJs.replace(/process\.env\.VITE_SUPABASE_URL/g, `'${URL_REAL}'`);
-    conteudoJs = conteudoJs.replace(/process\.env\.VITE_SUPABASE_ANON_KEY/g, `'${KEY_REAL}'`);
-    
-    // Injecao global forcada na primeira linha do script externo
-    const scriptRemendado = `window.process={env:{VITE_SUPABASE_URL:"${URL_REAL}",VITE_SUPABASE_ANON_KEY:"${KEY_REAL}"}};${conteudoJs}`;
-    
-    res.setHeader("Content-Type", "application/javascript");
-    return res.send(scriptRemendado);
-  }
-  res.status(404).end();
-});
-
-// Entrega os demais arquivos estaticos normalmente
 if (pastaDistEfetiva) {
   app.use(express.static(pastaDistEfetiva));
 }
 
-// Rota coringa que serve o HTML inicial
+const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
+const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
+
+const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.get("*", (req, res) => {
   if (pastaDistEfetiva) {
-    const caminhoHtml = path.join(pastaDistEfetiva, "index.html");
-    let html = fs.readFileSync(caminhoHtml, "utf8");
-    
-    // Injeta as variaveis direto no cabecalho do HTML para blindagem total
-    const injecaoScript = `
-      <script>
-        window.process = { env: { VITE_SUPABASE_URL: "${URL_REAL}", VITE_SUPABASE_ANON_KEY: "${KEY_REAL}" } };
-        globalThis.VITE_SUPABASE_URL = "${URL_REAL}";
-        globalThis.VITE_SUPABASE_ANON_KEY = "${KEY_REAL}";
-      </script>
-    `;
-    html = html.replace("<head>", `<head>${injecaoScript}`);
-    
-    res.setHeader("Content-Type", "text/html");
-    return res.send(html);
+    res.sendFile(path.join(pastaDistEfetiva, "index.html"));
+  } else {
+    res.status(404).send("Interface nao encontrada.");
   }
-  
-  res.status(200).send(`
-    <html>
-      <body style="background:#111;color:#fff;font-family:sans-serif;padding:40px;text-align:center;">
-        <h2>Sincronizando Interface...</h2>
-        <script>setTimeout(() => { location.reload(); }, 2000);</script>
-      </body>
-    </html>
-  `);
 });
 
 app.listen(port, () => {
