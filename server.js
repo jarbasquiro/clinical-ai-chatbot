@@ -60,23 +60,29 @@ app.get("*", (req, res) => {
         <title>CLINIC-AI 24H</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
-    <body class="bg-slate-950 text-slate-50 min-h-screen flex flex-col justify-center items-center font-sans">
-        <div class="max-w-md w-full bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 text-center mx-4">
-            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                <span class="text-2xl font-bold">🤖</span>
+    <!-- Ajustado o body para usar h-screen dinâmico e preenchimento inteligente -->
+    <body class="bg-slate-950 text-slate-50 min-h-screen w-full flex flex-col justify-center items-center font-sans p-2 sm:p-4 selection:bg-blue-500/30">
+        
+        <!-- Contêiner agora se adapta de telas minúsculas até computadores (w-full max-w-md e flex flex-col flex-1 em telas pequenas) -->
+        <div class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex flex-col justify-between text-center transition-all duration-300">
+            
+            <div>
+                <div class="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/20">
+                    <span class="text-xl sm:text-2xl font-bold">🤖</span>
+                </div>
+                <h1 class="text-xl sm:text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
+                <p class="text-slate-400 text-xs sm:text-sm font-medium mb-4">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
             </div>
-            <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
             
-            <!-- Assinatura profissional personalizada substituindo o texto antigo -->
-            <p class="text-slate-400 text-sm font-medium mb-6">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
-            
-            <div id="chat-container" style="white-space: pre-wrap;" class="border border-slate-800 bg-slate-950 rounded-xl p-4 h-84 overflow-y-auto mb-4 text-left text-sm space-y-3 min-h-[260px] max-h-[300px]">
+            <!-- Caixa do Chat com altura dinâmica (flex-1) que se molda perfeitamente ao tamanho da tela disponível -->
+            <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-xs sm:text-sm space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-300"><strong>Assistente:</strong> Olá, Jarbas! O chatbot está online e pronto para operar. Como posso te ajudar com os agendamentos ou fichas clínicas hoje?</div>
             </div>
 
-            <div class="flex gap-2">
-                <input type="text" id="user-input" placeholder="Digite sua mensagem..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-100" onkeypress="if(event.key === 'Enter') enviarMensagem()">
-                <button onclick="enviarMensagem()" id="btn-enviar" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition disabled:opacity-50">Enviar</button>
+            <!-- Campo de input e botão flexíveis para nunca quebrarem de linha de forma errada -->
+            <div class="flex gap-2 w-full items-center">
+                <input type="text" id="user-input" placeholder="Digite sua mensagem..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-600" onkeypress="if(event.key === 'Enter') enviarMensagem()">
+                <button onclick="enviarMensagem()" id="btn-enviar" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg text-xs sm:text-sm transition disabled:opacity-50 shrink-0">Enviar</button>
             </div>
         </div>
 
@@ -93,11 +99,11 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="text-slate-100 text-right text-xs bg-slate-850 p-2 rounded-lg inline-block float-right clear-both max-w-[80%] my-1 border border-slate-800"><strong>Você:</strong> \${texto}</div>\`;
+                container.innerHTML += \`<div class="text-slate-100 text-right text-xs bg-slate-850 p-2 rounded-lg inline-block float-right clear-both max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \${texto}</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pensando...</div>\`;
+                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1 text-xs sm:text-sm"><strong>Assistente:</strong> Pensando...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -115,16 +121,16 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div class="text-blue-300 bg-slate-900/50 p-2 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}</div>\`;
+                        container.innerHTML += \`<div class="text-blue-300 bg-slate-900/50 p-2 rounded-lg clear-both my-1 border border-slate-800/50 text-xs sm:text-sm"><strong>Assistente:</strong>\n\${dados.response}</div>\`;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-xs sm:text-sm"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
-                        container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
+                        container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-xs sm:text-sm"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += \`<div class="text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
+                    container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-xs sm:text-sm"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
                 }
 
                 input.disabled = false;
