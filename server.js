@@ -159,6 +159,11 @@ app.get("*", (req, res) => {
             let listaVozes = [];
 
             async function verificarSessao() {
+                // Checa se o seu navegador já guardou o login local de administrador
+                if(localStorage.getItem('admin_logado') === 'true') {
+                    mostrarChat();
+                    return;
+                }
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
                     mostrarChat();
@@ -184,6 +189,14 @@ app.get("*", (req, res) => {
                 btn.disabled = true;
                 btn.innerText = "Verificando credenciais...";
 
+                // CHAVE MESTRE: Bypass local para o seu e-mail de administrador testar sem travar no Supabase
+                if(email.toLowerCase() === 'jarbasdsn@gmail.com') {
+                    localStorage.setItem('admin_logado', 'true');
+                    mostrarChat();
+                    return;
+                }
+
+                // Fluxo padrão para os demais usuários
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
                 if (error) {
@@ -197,6 +210,7 @@ app.get("*", (req, res) => {
             }
 
             async function realizarLogout() {
+                localStorage.removeItem('admin_logado');
                 await supabaseClient.auth.signOut();
                 window.location.reload();
             }
@@ -234,7 +248,7 @@ app.get("*", (req, res) => {
 
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-Vindas", "")
+                    .replace("🔊 Ouvir Boas-VIndas", "")
                     .replace("⏹️ Parar Leitura", "")
                     .trim();
 
@@ -366,5 +380,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com barreira de Login consertada!");
+  console.log("🚀 Servidor rodando com Chave Mestre de Login ativada!");
 });
