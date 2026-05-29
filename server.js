@@ -109,7 +109,7 @@ app.get("*", (req, res) => {
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-300 message-item">
                     <strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
-                    <button onclick="lerTexto(this.parentElement)" class="block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
+                    <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
                 </div>
             </div>
 
@@ -121,20 +121,78 @@ app.get("*", (req, res) => {
 
         <script>
             let tamanhoAtual = 16;
-            
-            // FUNÇÃO QUE FAZ O NAVEGADOR FALAR EM PORTUGUÊS
-            function lerTexto(elemento) {
-                // Cancela qualquer outra leitura em andamento para não encavalar as vozes
+            let falaAtual = null;
+            let botaoAtivo = null;
+
+            // NOVA LÓGICA DE ÁUDIO CORRIGIDA COM SUPORTE A PLAY/PAUSE E VOZ MASCULINA
+            function controlarAudio(botao, elementoPai) {
+                // Se o usuário clicar no botão do texto que já está tocando, para tudo
+                if (window.speechSynthesis.speaking && botaoAtivo === botao) {
+                    window.speechSynthesis.cancel();
+                    resetarBotoesAudio();
+                    return;
+                }
+
+                // Para qualquer áudio antigo de outro bloco antes de começar o novo
                 window.speechSynthesis.cancel();
+                resetarBotoesAudio();
 
-                // Limpa o texto para não ler a palavra do próprio botão "Ouvir"
-                let textoParaLer = elemento.innerText.replace("🔊 Ouvir Resposta", "").replace("🔊 Ouvir Boas-Vindas", "").trim();
+                // Identifica o texto limpo ignorando o nome do botão
+                let textoParaLer = elementoPai.innerText
+                    .replace("🔊 Ouvir Resposta", "")
+                    .replace("🔊 Ouvir Boas-Vindas", "")
+                    .replace("突破 Parar Leitura", "")
+                    .trim();
 
-                const enunciado = new SpeechSynthesisUtterance(textoParaLer);
-                enunciado.lang = 'pt-BR'; // Força a pronúncia correta em Português do Brasil
-                enunciado.rate = 1.1;     // Velocidade da fala ligeiramente otimizada
+                falaAtual = new SpeechSynthesisUtterance(textoParaLer);
+                falaAtual.lang = 'pt-BR';
+                falaAtual.rate = 1.15; // Ritmo dinâmico de leitura clínica
 
-                window.speechSynthesis.speak(enunciado);
+                // FILTRO DE SELEÇÃO PARA VOZ MASCULINA BRASILEIRA
+                const vozes = window.speechSynthesis.getVoices();
+                
+                // Procura por vozes masculinas conhecidas do Google/Microsoft ou termos como 'male' / 'man'
+                let vozMasculina = vozes.find(v => v.lang.includes('PT') && (v.name.toLowerCase().includes('daniel') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('antonio') || v.name.toLowerCase().includes('francisco')));
+                
+                if (!vozMasculina) {
+                    vozMasculina = vozes.find(v => v.lang.includes('PT')); // Fallback para pt-BR se não achar id específico na hora
+                }
+                
+                if (vozMasculina) falaAtual.voice = vozMasculina;
+
+                // Modifica o estado visual do botão para indicar que está tocando
+                botaoAtivo = botao;
+                botao.innerHTML = "⏹️ Parar Leitura";
+                botao.classList.remove("text-blue-500");
+                botao.classList.add("text-red-400", "font-bold");
+
+                // Quando a fala terminar naturalmente, devolve o botão para o estado original
+                falaAtual.onend = function() {
+                    resetarBotoesAudio();
+                };
+
+                window.speechSynthesis.speak(falaAtual);
+            }
+
+            // Reseta o visual de todos os botões de áudio da tela de volta para o padrão
+            function resetarBotoesAudio() {
+                const botoes = document.querySelectorAll('.btn-audio');
+                botoes.forEach(b => {
+                    if (b.innerText.includes("Boas-Vindas")) {
+                        b.innerHTML = "🔊 Ouvir Boas-Vindas";
+                    } else {
+                        b.innerHTML = "🔊 Ouvir Resposta";
+                    }
+                    b.classList.remove("text-red-400", "font-bold");
+                    b.classList.add("text-blue-500");
+                });
+                falaAtual = null;
+                botaoAtivo = null;
+            }
+
+            // Garante o carregamento das vozes em sistemas baseados em Chromium/Android
+            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = () => {};
             }
 
             function alterarFonte(direcao) {
@@ -185,8 +243,7 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        // ADICIONADO: Inserção automática do botão de áudio dinâmico em cada resposta nova da IA
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}<button onclick="lerTexto(this.parentElement)" class="block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
                     } else if (dados.error) {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
@@ -214,5 +271,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Controle de Fonte e Áudio Ativos!");
+  console.log("🚀 Servidor ativo com Alternador Play/Pause e Voz Masculina!");
 });
