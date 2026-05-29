@@ -41,7 +41,7 @@ app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
+const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iCElhdCI6MTcxNjg4NDA5NSwiZXhwIjoyMDMyNDYwMDk1fQ.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
 
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
@@ -125,7 +125,6 @@ app.get("*", (req, res) => {
             let botaoAtivo = null;
             let listaVozes = [];
 
-            // Carrega e atualiza a lista de vozes de forma robusta no navegador
             function carregarVozes() {
                 if (typeof speechSynthesis !== 'undefined') {
                     listaVozes = window.speechSynthesis.getVoices();
@@ -152,16 +151,16 @@ app.get("*", (req, res) => {
                     .replace("⏹️ Parar Leitura", "")
                     .trim();
 
-                falaAtual = new SpeechSynthesisUtterance(textoParaLer);
-                falaAtual.rate = 1.05; // Ajustado sutilmente para um tom mais natural e firme
+                // LÓGICA DE LIMPEZA FILTRADA: Remove cirurgicamente todos os asteriscos do áudio
+                textoParaLer = textoParaLer.replace(/\\*/g, "");
 
-                // NOVO FILTRO AGRESSIVO DE VOZ MASCULINA BRASILEIRA
+                falaAtual = new SpeechSynthesisUtterance(textoParaLer);
+                falaAtual.rate = 1.05; 
+
                 if (listaVozes.length === 0) carregarVozes();
                 
-                // Filtra apenas as vozes que são estritamente do Brasil (pt-BR)
                 const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
                 
-                // 1ª tentativa: Busca cirúrgica por nomes masculinos conhecidos no ecossistema mobile/desktop
                 let vozEscolhida = vozesBr.find(v => {
                     const nome = v.name.toLowerCase();
                     return nome.includes('daniel') || 
@@ -174,7 +173,6 @@ app.get("*", (req, res) => {
                            nome.includes('microsoft ricardo');
                 });
 
-                // 2ª tentativa: Se não achou um nome masculino explícito na varredura, tenta a primeira voz pt-BR disponível
                 if (!vozEscolhida && vozesBr.length > 0) {
                     vozEscolhida = vozesBr[0];
                 }
@@ -186,7 +184,7 @@ app.get("*", (req, res) => {
                     falaAtual.lang = 'pt-BR';
                 }
 
-                botaoAtivo = block = botao;
+                botaoAtivo = botao;
                 botao.innerHTML = "⏹️ Parar Leitura";
                 botao.classList.remove("text-blue-500");
                 botao.classList.add("text-red-400", "font-bold");
@@ -289,5 +287,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com escaneamento aprimorado de vozes masculinas!");
+  console.log("🚀 Servidor rodando com limpador automático de códigos Markdown!");
 });
