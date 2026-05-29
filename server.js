@@ -41,12 +41,11 @@ app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iCElhdCI6MTcxNjg4NDA5NSwiZXhwIjoyMDMyNDYwMDk1fQ.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
+const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
 
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
 
-// API do Chat protegida - Idealmente checaríamos o token aqui nas próximas etapas de refinação
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -150,7 +149,6 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // Inicializa a conexão do Supabase no Front-End usando as mesmas chaves do servidor
             const sbUrl = "${URL_REAL}";
             const sbKey = "${KEY_REAL}";
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
@@ -160,7 +158,6 @@ app.get("*", (req, res) => {
             let botaoAtivo = null;
             let listaVozes = [];
 
-            // Verifica se o aluno já tem uma sessão salva no celular para pular o login direto pro chat
             async function verificarSessao() {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
@@ -171,7 +168,6 @@ app.get("*", (req, res) => {
             }
             verificarSessao();
 
-            // FUNÇÃO QUE EXECUTA O LOGIN NO BANCO DE DADOS
             async function realizarLogin() {
                 const email = document.getElementById('login-email').value.trim();
                 const password = document.getElementById('login-password').value.trim();
@@ -200,7 +196,6 @@ app.get("*", (req, res) => {
                 }
             }
 
-            // FUNÇÃO PARA LOGOUT
             async function realizarLogout() {
                 await supabaseClient.auth.signOut();
                 window.location.reload();
@@ -298,7 +293,6 @@ app.get("*", (req, res) => {
             function alterarFonte(direcao) {
                 tamanhoAtual += direcao;
                 if (tamanhoAtual < 13) tamanhoAtual = 13;
-                if (tamanhoAtual > 24) taxation = 24;
                 if (tamanhoAtual > 24) tamanhoAtual = 24;
                 
                 const container = document.getElementById('chat-container');
@@ -372,5 +366,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com barreira de Login ativada!");
+  console.log("🚀 Servidor rodando com barreira de Login consertada!");
 });
