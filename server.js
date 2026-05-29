@@ -58,7 +58,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -107,7 +107,10 @@ app.get("*", (req, res) => {
             </div>
             
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
-                <div class="text-slate-300 message-item"><strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?</div>
+                <div class="text-slate-300 message-item">
+                    <strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
+                    <button onclick="lerTexto(this.parentElement)" class="block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
+                </div>
             </div>
 
             <div class="flex gap-2 w-full items-center">
@@ -117,18 +120,31 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // Função que controla o tamanho da fonte dinamicamente
-            let tamanhoAtual = 16; // tamanho inicial em pixels
+            let tamanhoAtual = 16;
+            
+            // FUNÇÃO QUE FAZ O NAVEGADOR FALAR EM PORTUGUÊS
+            function lerTexto(elemento) {
+                // Cancela qualquer outra leitura em andamento para não encavalar as vozes
+                window.speechSynthesis.cancel();
+
+                // Limpa o texto para não ler a palavra do próprio botão "Ouvir"
+                let textoParaLer = elemento.innerText.replace("🔊 Ouvir Resposta", "").replace("🔊 Ouvir Boas-Vindas", "").trim();
+
+                const enunciado = new SpeechSynthesisUtterance(textoParaLer);
+                enunciado.lang = 'pt-BR'; // Força a pronúncia correta em Português do Brasil
+                enunciado.rate = 1.1;     // Velocidade da fala ligeiramente otimizada
+
+                window.speechSynthesis.speak(enunciado);
+            }
+
             function alterarFonte(direcao) {
                 tamanhoAtual += direcao;
-                // Trava para não ficar pequeno demais nem gigante demais (entre 13px e 24px)
                 if (tamanhoAtual < 13) tamanhoAtual = 13;
                 if (tamanhoAtual > 24) tamanhoAtual = 24;
                 
                 const container = document.getElementById('chat-container');
                 container.style.fontSize = tamanhoAtual + 'px';
                 
-                // Aplica também em todos os elementos internos que já foram gerados
                 const itens = container.querySelectorAll('.message-item');
                 itens.forEach(item => {
                     item.style.fontSize = tamanhoAtual + 'px';
@@ -147,8 +163,7 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                // Agora as novas mensagens herdam a classe 'message-item' e o tamanho de fonte atual escolhido pelo usuário
-                container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 text-right bg-slate-850 p-2.5 rounded-lg inline-block float-right clear-both max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div>\`;
+                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div></div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
@@ -170,7 +185,8 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}</div>\`;
+                        // ADICIONADO: Inserção automática do botão de áudio dinâmico em cada resposta nova da IA
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}<button onclick="lerTexto(this.parentElement)" class="block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
                     } else if (dados.error) {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
@@ -198,5 +214,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com controle de fonte ativo!");
+  console.log("🚀 Servidor rodando com Controle de Fonte e Áudio Ativos!");
 });
