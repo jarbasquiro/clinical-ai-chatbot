@@ -106,7 +106,7 @@ app.get("*", (req, res) => {
                 </div>
             </div>
             
-            <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[5vh] sm:max-h-[350px]">
+            <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-300 message-item">
                     <strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
                     <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
@@ -123,6 +123,18 @@ app.get("*", (req, res) => {
             let tamanhoAtual = 16;
             let falaAtual = null;
             let botaoAtivo = null;
+            let listaVozes = [];
+
+            // Carrega e atualiza a lista de vozes de forma robusta no navegador
+            function carregarVozes() {
+                if (typeof speechSynthesis !== 'undefined') {
+                    listaVozes = window.speechSynthesis.getVoices();
+                }
+            }
+            carregarVozes();
+            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = carregarVozes;
+            }
 
             function controlarAudio(botao, elementoPai) {
                 if (window.speechSynthesis.speaking && botaoAtivo === botao) {
@@ -141,28 +153,40 @@ app.get("*", (req, res) => {
                     .trim();
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
-                falaAtual.rate = 1.1; 
+                falaAtual.rate = 1.05; // Ajustado sutilmente para um tom mais natural e firme
 
-                // AJUSTADO: Filtro blindado focado 100% no Português do Brasil (pt-BR)
-                const vozes = window.speechSynthesis.getVoices();
+                // NOVO FILTRO AGRESSIVO DE VOZ MASCULINA BRASILEIRA
+                if (listaVozes.length === 0) carregarVozes();
                 
-                // 1ª tentativa: Acha uma voz masculina especificamente brasileira (pt-BR)
-                let vozMasculinaBr = vozes.find(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br' && 
-                    (v.name.toLowerCase().includes('daniel') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('antonio') || v.name.toLowerCase().includes('francisco') || v.name.toLowerCase().includes('male')));
+                // Filtra apenas as vozes que são estritamente do Brasil (pt-BR)
+                const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
                 
-                // 2ª tentativa: Se não achar com nome masculino explícito, pega QUALQUEER voz que seja pt-BR do Brasil
-                if (!vozMasculinaBr) {
-                    vozMasculinaBr = vozes.find(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
+                // 1ª tentativa: Busca cirúrgica por nomes masculinos conhecidos no ecossistema mobile/desktop
+                let vozEscolhida = vozesBr.find(v => {
+                    const nome = v.name.toLowerCase();
+                    return nome.includes('daniel') || 
+                           nome.includes('antonio') || 
+                           nome.includes('francisco') || 
+                           nome.includes('male') || 
+                           nome.includes('homem') || 
+                           nome.includes('guy') || 
+                           nome.includes('pablo') ||
+                           nome.includes('microsoft ricardo');
+                });
+
+                // 2ª tentativa: Se não achou um nome masculino explícito na varredura, tenta a primeira voz pt-BR disponível
+                if (!vozEscolhida && vozesBr.length > 0) {
+                    vozEscolhida = vozesBr[0];
                 }
-                
-                if (vozMasculinaBr) {
-                    falaAtual.voice = vozMasculinaBr;
-                    falaAtual.lang = vozMasculinaBr.lang; // Alinha o idioma do motor perfeitamente
+
+                if (vozEscolhida) {
+                    falaAtual.voice = vozEscolhida;
+                    falaAtual.lang = vozEscolhida.lang;
                 } else {
-                    falaAtual.lang = 'pt-BR'; // Fallback padrão
+                    falaAtual.lang = 'pt-BR';
                 }
 
-                botaoAtivo = botao;
+                botaoAtivo = block = botao;
                 botao.innerHTML = "⏹️ Parar Leitura";
                 botao.classList.remove("text-blue-500");
                 botao.classList.add("text-red-400", "font-bold");
@@ -187,11 +211,6 @@ app.get("*", (req, res) => {
                 });
                 falaAtual = null;
                 botaoAtivo = null;
-            }
-
-            // Força o carregamento correto das vozes nos navegadores mobile
-            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = () => {};
             }
 
             function alterarFonte(direcao) {
@@ -270,5 +289,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor atualizado: Foco total no Português do Brasil!");
+  console.log("🚀 Servidor rodando com escaneamento aprimorado de vozes masculinas!");
 });
