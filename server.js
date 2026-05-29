@@ -58,8 +58,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          // CORREÇÃO CRÍTICA: IA agora sabe que é uma ferramenta de pesquisa acadêmica/técnica e ignora agendamentos
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para manter a leitura limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -98,12 +97,17 @@ app.get("*", (req, res) => {
                     <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
                 </div>
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
-                <p class="text-slate-400 text-sm font-medium mb-4">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
+                <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
+                
+                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
+                    <span>Tamanho do texto:</span>
+                    <button onclick="alterarFonte(-1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A-</button>
+                    <button onclick="alterarFonte(1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A+</button>
+                </div>
             </div>
             
-            <div id="chat-container" style="white-space: pre-wrap;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left text-base sm:text-sm space-y-3 min-h-[180px] max-h-[58vh] sm:max-h-[350px]">
-                <!-- MENSAGEM INICIAL CORRIGIDA PARA FOCO EM ALUNOS E ACADEMIA -->
-                <div class="text-slate-300"><strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?</div>
+            <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
+                <div class="text-slate-300 message-item"><strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?</div>
             </div>
 
             <div class="flex gap-2 w-full items-center">
@@ -113,6 +117,24 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
+            // Função que controla o tamanho da fonte dinamicamente
+            let tamanhoAtual = 16; // tamanho inicial em pixels
+            function alterarFonte(direcao) {
+                tamanhoAtual += direcao;
+                // Trava para não ficar pequeno demais nem gigante demais (entre 13px e 24px)
+                if (tamanhoAtual < 13) tamanhoAtual = 13;
+                if (tamanhoAtual > 24) tamanhoAtual = 24;
+                
+                const container = document.getElementById('chat-container');
+                container.style.fontSize = tamanhoAtual + 'px';
+                
+                // Aplica também em todos os elementos internos que já foram gerados
+                const itens = container.querySelectorAll('.message-item');
+                itens.forEach(item => {
+                    item.style.fontSize = tamanhoAtual + 'px';
+                });
+            }
+
             async function enviarMensagem() {
                 const input = document.getElementById('user-input');
                 const container = document.getElementById('chat-container');
@@ -125,11 +147,12 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="text-slate-100 text-right text-base sm:text-sm bg-slate-850 p-2.5 rounded-lg inline-block float-right clear-both max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div>\`;
+                // Agora as novas mensagens herdam a classe 'message-item' e o tamanho de fonte atual escolhido pelo usuário
+                container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 text-right bg-slate-850 p-2.5 rounded-lg inline-block float-right clear-both max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" class="text-slate-400 italic animate-pulse clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
+                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -147,16 +170,16 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div class="text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 text-base sm:text-sm"><strong>Assistente:</strong>\n\${dados.response}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}</div>\`;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
-                        container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> Resposta invalida.</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += \`<div class="text-red-400 clear-both my-1 text-base sm:text-sm"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
+                    container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
                 }
 
                 input.disabled = false;
@@ -175,5 +198,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Servidor rodando na porta ${port}`);
+  console.log("🚀 Servidor rodando com controle de fonte ativo!");
 });
