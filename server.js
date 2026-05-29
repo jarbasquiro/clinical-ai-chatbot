@@ -46,6 +46,7 @@ const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
 
+// API do Chat protegida - Idealmente checaríamos o token aqui nas próximas etapas de refinação
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -87,14 +88,43 @@ app.get("*", (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>CLINIC-AI 24H</title>
         <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     </head>
     <body class="bg-slate-950 text-slate-50 min-h-screen w-full flex flex-col justify-center items-center font-sans p-2 sm:p-4 selection:bg-blue-500/30">
         
-        <div class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex flex-col justify-between text-center transition-all duration-300">
+        <div id="login-screen" class="w-full max-w-md bg-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-800 text-center space-y-4">
+            <div class="w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20 bg-slate-950 flex items-center justify-center">
+                <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-blue-500">CLINIC-AI 24H</h1>
+                <p class="text-slate-400 text-sm">Acesso Exclusivo para Alunos e Assinantes</p>
+            </div>
+            
+            <div class="space-y-3 text-left">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">E-mail de Aluno</label>
+                    <input type="email" id="login-email" placeholder="seu@email.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-700">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">Senha de Acesso</label>
+                    <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100 placeholder:text-slate-700" onkeypress="if(event.key === 'Enter') realizarLogin()">
+                </div>
+                <div id="login-error" class="text-red-400 text-xs font-medium hidden"></div>
+                <button onclick="realizarLogin()" id="btn-login" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition active:scale-[0.99]">Entrar na Plataforma</button>
+            </div>
+            <p class="text-[11px] text-slate-500">Liberado automaticamente após a assinatura na Kiwify.</p>
+        </div>
+
+        <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
             
             <div>
-                <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20 bg-slate-950 flex items-center justify-center">
-                    <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="w-5"></div>
+                    <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-500 shadow-md bg-slate-950 flex items-center justify-center">
+                        <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
+                    </div>
+                    <button onclick="realizarLogout()" class="text-slate-500 hover:text-red-400 text-xs border border-slate-800 rounded px-2 py-0.5 bg-slate-950 transition active:scale-95">Sair</button>
                 </div>
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
@@ -120,17 +150,79 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
+            // Inicializa a conexão do Supabase no Front-End usando as mesmas chaves do servidor
+            const sbUrl = "${URL_REAL}";
+            const sbKey = "${KEY_REAL}";
+            const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+
             let tamanhoAtual = 16;
             let falaAtual = null;
             let botaoAtivo = null;
             let listaVozes = [];
+
+            // Verifica se o aluno já tem uma sessão salva no celular para pular o login direto pro chat
+            async function verificarSessao() {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    mostrarChat();
+                } else {
+                    mostrarLogin();
+                }
+            }
+            verificarSessao();
+
+            // FUNÇÃO QUE EXECUTA O LOGIN NO BANCO DE DADOS
+            async function realizarLogin() {
+                const email = document.getElementById('login-email').value.trim();
+                const password = document.getElementById('login-password').value.trim();
+                const erroDiv = document.getElementById('login-error');
+                const btn = document.getElementById('btn-login');
+
+                if(!email || !password) {
+                    erroDiv.innerText = "Preencha todos os campos.";
+                    erroDiv.classList.remove('hidden');
+                    return;
+                }
+
+                erroDiv.classList.add('hidden');
+                btn.disabled = true;
+                btn.innerText = "Verificando credenciais...";
+
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+                if (error) {
+                    erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                    erroDiv.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.innerText = "Entrar na Plataforma";
+                } else {
+                    mostrarChat();
+                }
+            }
+
+            // FUNÇÃO PARA LOGOUT
+            async function realizarLogout() {
+                await supabaseClient.auth.signOut();
+                window.location.reload();
+            }
+
+            function mostrarChat() {
+                document.getElementById('login-screen').style.display = 'none';
+                const appScreen = document.getElementById('app-screen');
+                appScreen.style.display = 'flex';
+                carregarVozes();
+            }
+
+            function mostrarLogin() {
+                document.getElementById('app-screen').style.display = 'none';
+                document.getElementById('login-screen').style.display = 'block';
+            }
 
             function carregarVozes() {
                 if (typeof speechSynthesis !== 'undefined') {
                     listaVozes = window.speechSynthesis.getVoices();
                 }
             }
-            carregarVozes();
             if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = carregarVozes;
             }
@@ -151,7 +243,6 @@ app.get("*", (req, res) => {
                     .replace("⏹️ Parar Leitura", "")
                     .trim();
 
-                // LÓGICA DE LIMPEZA FILTRADA: Remove cirurgicamente todos os asteriscos do áudio
                 textoParaLer = textoParaLer.replace(/\\*/g, "");
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
@@ -163,14 +254,7 @@ app.get("*", (req, res) => {
                 
                 let vozEscolhida = vozesBr.find(v => {
                     const nome = v.name.toLowerCase();
-                    return nome.includes('daniel') || 
-                           nome.includes('antonio') || 
-                           nome.includes('francisco') || 
-                           nome.includes('male') || 
-                           nome.includes('homem') || 
-                           nome.includes('guy') || 
-                           nome.includes('pablo') ||
-                           nome.includes('microsoft ricardo');
+                    return nome.includes('daniel') || nome.includes('antonio') || nome.includes('francisco') || nome.includes('male') || nome.includes('homem') || nome.includes('microsoft ricardo');
                 });
 
                 if (!vozEscolhida && vozesBr.length > 0) {
@@ -214,6 +298,7 @@ app.get("*", (req, res) => {
             function alterarFonte(direcao) {
                 tamanhoAtual += direcao;
                 if (tamanhoAtual < 13) tamanhoAtual = 13;
+                if (tamanhoAtual > 24) taxation = 24;
                 if (tamanhoAtual > 24) tamanhoAtual = 24;
                 
                 const container = document.getElementById('chat-container');
@@ -287,5 +372,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com limpador automático de códigos Markdown!");
+  console.log("🚀 Servidor rodando com barreira de Login ativada!");
 });
