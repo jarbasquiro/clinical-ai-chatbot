@@ -43,9 +43,76 @@ app.use(express.static(path.join(baseDir, "project", "public")));
 const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
 const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
 
+// Usamos a KEY_REAL administrativa no backend para criar/deletar usuários direto via código de forma segura
 const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
 
+// ==========================================
+// 🚀 NOVA ROTA: WEBHOOK DA KIWIFY AUTOMÁTICO
+// ==========================================
+app.post("/api/webhook/kiwify", async (req, res) => {
+  try {
+    const dadosKiwify = req.body;
+    console.log("Recebido Webhook da Kiwify:", dadosKiwify);
+
+    // Captura os dados vitais enviados pela Kiwify
+    const statusPedido = dadosKiwify.order_status; // ex: "paid", "refunded", "canceled"
+    const emailAluno = dadosKiwify.Customer?.email || dadosKiwify.email;
+
+    if (!emailAluno) {
+      return res.status(400).json({ error: "E-mail do aluno nao encontrado no disparo." });
+    }
+
+    // CASO 1: Aluno comprou e o pagamento foi aprovado ("paid")
+    if (statusPedido === "paid") {
+      console.log(`Liberando acesso para o aluno: ${emailAluno}`);
+
+      // Cria o usuário de forma automatizada e já confirmada dentro do Supabase Auth
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: emailAluno,
+        password: "clinicai24h", // Senha padrão inicial para todos os alunos (eles podem alterar depois)
+        email_confirm: true
+      });
+
+      if (error) {
+        // Se o erro for porque o usuário já existe (ex: renovou assinatura ou comprou de novo), ignoramos o erro
+        if (error.message.includes("already exists") || error.status === 422) {
+          console.log("Aluno ja possuía cadastro ativo no sistema.");
+          return res.status(200).send("Usuário ja ativo.");
+        }
+        console.error("Erro ao criar aluno no Supabase via Webhook:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).send("Acesso de Aluno criado com sucesso!");
+    }
+
+    // CASO 2: Aluno pediu reembolso, cancelou a assinatura ou falhou o pagamento ("refunded", "canceled", "chargedback")
+    if (statusPedido === "refunded" || statusPedido === "canceled" || statusPedido === "chargedback") {
+      console.log(`Bloqueando/Removendo acesso do inadimplente: ${emailAluno}`);
+      
+      // Busca o ID do usuário para conseguir deletar da barreira de login
+      const { data: listaUsuarios, error: errBusca } = await supabase.auth.admin.listUsers();
+      const usuarioEncontrado = listaUsuarios?.users?.find(u => u.email.toLowerCase() === emailAluno.toLowerCase());
+
+      if (usuarioEncontrado) {
+        const { error: errDelete } = await supabase.auth.admin.deleteUser(usuarioEncontrado.id);
+        if (errDelete) console.error("Erro ao remover acesso:", errDelete);
+      }
+
+      return res.status(200).send("Acesso revogado com sucesso.");
+    }
+
+    // Para outros status da Kiwify (ex: aguardando boleto, processando pix), apenas responde OK sem mexer no acesso
+    res.status(200).send("Webhook processado (sem alteração de status).");
+
+  } catch (error) {
+    console.error("Erro interno no Webhook da Kiwify:", error);
+    res.status(500).send("Erro interno no processamento do servidor.");
+  }
+});
+
+// Rota do Chat protegida
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -159,7 +226,6 @@ app.get("*", (req, res) => {
             let listaVozes = [];
 
             async function verificarSessao() {
-                // Checa se o seu navegador já guardou o login local de administrador
                 if(localStorage.getItem('admin_logado') === 'true') {
                     mostrarChat();
                     return;
@@ -189,14 +255,12 @@ app.get("*", (req, res) => {
                 btn.disabled = true;
                 btn.innerText = "Verificando credenciais...";
 
-                // CHAVE MESTRE: Bypass local para o seu e-mail de administrador testar sem travar no Supabase
                 if(email.toLowerCase() === 'jarbasdsn@gmail.com') {
                     localStorage.setItem('admin_logado', 'true');
                     mostrarChat();
                     return;
                 }
 
-                // Fluxo padrão para os demais usuários
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
                 if (error) {
@@ -248,7 +312,7 @@ app.get("*", (req, res) => {
 
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-VIndas", "")
+                    .replace("🔊 Ouvir Boas-Vindas", "")
                     .replace("⏹️ Parar Leitura", "")
                     .trim();
 
@@ -380,5 +444,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Chave Mestre de Login ativada!");
+  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo!");
 });
