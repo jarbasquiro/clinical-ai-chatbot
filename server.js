@@ -40,11 +40,19 @@ if (pastaDistEfetiva) {
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
-const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
+// ==========================================
+// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS VIA PROCESSO
+// ==========================================
+const URL_REAL = process.env.SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+const KEY_REAL = process.env.SUPABASE_ANON_KEY;
+const GROQ_KEY = process.env.GROQ_API_KEY;
 
-const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
+if (!KEY_REAL || !GROQ_KEY) {
+  console.warn("⚠️ ATENÇÃO: Variáveis de ambiente secretas não foram detectadas localmente!");
+}
+
+const supabase = createClient(URL_REAL, KEY_REAL);
+const groq = new Groq({ apiKey: GROQ_KEY });
 
 // ==========================================
 // 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO
@@ -208,9 +216,10 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
+            // No front-end dinâmico usamos variáveis injetadas de forma limpa
             const sbUrl = "${URL_REAL}";
-            const sbKey = "${KEY_REAL}";
-            const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+            const sbKey = \`\${window.location.origin === 'http://localhost:3000' ? '' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU'}\`;
+            const supabaseClient = window.supabase.createClient(sbUrl, sbKey || 'placeholder');
 
             let tamanhoAtual = 16;
             let falaAtual = null;
@@ -222,12 +231,10 @@ app.get("*", (req, res) => {
                     mostrarChat();
                     return;
                 }
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) {
-                    mostrarChat();
-                } else {
-                    mostrarLogin();
-                }
+                try {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) { mostrarChat(); } else { mostrarLogin(); }
+                } catch(e) { mostrarLogin(); }
             }
             verificarSessao();
 
@@ -253,21 +260,26 @@ app.get("*", (req, res) => {
                     return;
                 }
 
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-                if (error) {
-                    erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                        erroDiv.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.innerText = "Entrar na Plataforma";
+                    } else {
+                        mostrarChat();
+                    }
+                } catch(e) {
+                    erroDiv.innerText = "Erro ao conectar.";
                     erroDiv.classList.remove('hidden');
                     btn.disabled = false;
-                    btn.innerText = "Entrar na Plataforma";
-                } else {
-                    mostrarChat();
                 }
             }
 
             async function realizarLogout() {
                 localStorage.removeItem('admin_logado');
-                await supabaseClient.auth.signOut();
+                try { await supabaseClient.auth.signOut(); } catch(e){}
                 window.location.reload();
             }
 
@@ -386,9 +398,6 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                // ============================================================
-                // 🎨 MUDANÇA 1: Pergunta do Aluno fica em AZUL (text-blue-300)
-                // ============================================================
                 container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> \` + texto + \`</div></div>\`;
                 container.scrollTop = container.scrollHeight;
 
@@ -411,12 +420,9 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        // ============================================================
-                        // 🎨 MUDANÇA 2: Resposta da IA fica BRANCA (text-slate-100)
-                        // ============================================================
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \  \${dados.error}</div>\`;
                     } else {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
