@@ -34,9 +34,9 @@ for (const caminho of caminhosDist) {
   }
 }
 
-if (pastaDistEfetiva) {
-  app.use(express.static(pastaDistEfetiva));
-}
+//if (pastaDistEfetiva) {
+//app.use(express.static(pastaDistEfetiva));
+//}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
