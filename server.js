@@ -17,25 +17,28 @@ app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const baseDir = process.cwd();
 
-// MAPEAMENTO BLINDADO: Procura a pasta public onde quer que ela esteja para não sumir com o login
-let publicPath = path.join(baseDir, "public");
+// RESOLVENDO A BAGUNÇA DE PASTAS: Encontra onde está o index.html de verdade
+let caminhosPossiveis = [
+  path.join(__dirname, "public"),
+  path.join(__dirname, "dist"),
+  __dirname
+];
 
-if (!fs.existsSync(publicPath)) {
-  publicPath = path.join(__dirname, "public");
+let pastaPublica = __dirname;
+for (const caminho of caminhosPossiveis) {
+  if (fs.existsSync(path.join(caminho, "index.html"))) {
+    pastaPublica = caminho;
+    break;
+  }
 }
-if (!fs.existsSync(publicPath)) {
-  publicPath = baseDir; // Último recurso: usa a raiz se a pasta sumiu
-}
 
-app.use(express.static(publicPath));
+app.use(express.static(pastaPublica));
 
-// Conexão dinâmica com as variáveis do Render
+// Conexão com o Supabase usando as variáveis do ambiente do Render
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const KEY_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
-const KEY_SERVICE = process.env.SUPABASE_SERVICE_KEY || KEY_ANON;
 
 let supabasePublic = null;
 let groq = null;
@@ -48,48 +51,47 @@ try {
     groq = new Groq({ apiKey: GROQ_KEY });
   }
 } catch (err) {
-  console.error("Erro critico nas chaves:", err.message);
+  console.error("Erro na inicializacao das chaves:", err.message);
 }
 
-// API do Chat com buscador de vídeos tolerante a erros e acentos
+// Rota da API do Chat com busca ultra flexível de termos de vídeo
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "Mensagem vazia." });
-    if (!groq || !supabasePublic) return res.status(500).json({ error: "Chaves nao configuradas no Render." });
+    if (!groq || !supabasePublic) return res.status(500).json({ error: "Configuracoes ausentes no Render." });
 
     let videoEncontrado = null;
     try {
+      // Puxa os dados da tabela de vídeos do Supabase
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
       
       if (listaVideos && listaVideos.length > 0) {
-        // Limpa o texto que o aluno digitou
-        const alunoTextoLimpo = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+        // Limpa acentos, traços e espaços do texto digitado pelo usuário
+        const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
         
         for (const vid of listaVideos) {
           if (!vid.termo) continue;
           
-          // Limpa o termo do banco de dados
-          const termoLimpo = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+          // Limpa o termo cadastrado no banco (ex: transforma "auriculoterapia-acne" em "auriculoterapia acne")
+          const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
           
-          // Busca por aproximação direta
-          if (alunoTextoLimpo.includes(termoLimpo) || termoLimpo.includes(alunoTextoLimpo)) {
+          // Se o usuário digitou o termo completo ou palavras-chave dele
+          if (textoUsuario.includes(termoBanco) || termoBanco.includes(textoUsuario)) {
             videoEncontrado = vid;
             break;
           }
           
-          // Busca quebrando por palavras significativas
-          const palavrasChave = termoLimpo.split(" ").filter(p => p.length > 3);
-          const deuMatch = palavrasChave.some(p => alunoTextoLimpo.includes(p));
-          
-          if (deuMatch) {
+          // Busca secundária por palavras separadas (ignora conectores curtos)
+          const palavrasChave = termoBanco.split(" ").filter(p => p.length > 3);
+          if (palavrasChave.some(palavra => textoUsuario.includes(palavra))) {
             videoEncontrado = vid;
             break;
           }
         }
       }
     } catch (e) {
-      console.log("Erro ao ler tabela de vídeos:", e.message);
+      console.log("Erro ao acessar tabela de vídeos:", e.message);
     }
 
     const completion = await groq.chat.completions.create({
@@ -114,13 +116,9 @@ app.post("/api/chat", async (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-// Entrega o index.html procurando na pasta pública ou na raiz
+// Rota coringa que entrega o index.html correto encontrado pelo servidor
 app.get("*", (req, res) => {
-  const caminhoIndex = fs.existsSync(path.join(publicPath, "index.html"))
-    ? path.join(publicPath, "index.html")
-    : path.join(__dirname, "index.html");
-    
-  res.sendFile(caminhoIndex);
+  res.sendFile(path.join(pastaPublica, "index.html"));
 });
 
-app.listen(port, () => console.log("🚀 Servidor totalmente online e corrigido!"));
+app.listen(port, () => console.log(`🚀 Servidor rodando na porta ${port}`));
