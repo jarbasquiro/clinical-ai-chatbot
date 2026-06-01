@@ -41,17 +41,30 @@ app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 // ============================================================
-// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS DE FORMA SEGURA VIA RENDER
+// 🛡️ SEGURANÇA MÁXIMA: MAPEAMENTO INTELIGENTE DE CHAVES DO SUPABASE
 // ============================================================
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
-const supabase = createClient(URL_REAL, KEY_REAL);
+// Chave Anon/Service para operações gerais e leitura de tabelas
+const KEY_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+// Chave exclusiva de Service/Admin para o Webhook criar alunos sem travar
+const KEY_SERVICE = process.env.SUPABASE_SERVICE_KEY || KEY_ANON;
+
+// Clientes separados para evitar conflito de privilégios no banco de dados
+const supabasePublic = createClient(URL_REAL, KEY_ANON);
+const supabaseAdmin = createClient(URL_REAL, KEY_SERVICE, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
 const groq = new Groq({ apiKey: GROQ_KEY });
 
 // ==========================================
-// 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO
+// 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO (USA CLIENTE ADMIN)
 // ==========================================
 app.post("/api/webhook/kiwify", async (req, res) => {
   try {
@@ -68,7 +81,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
     if (statusPedido === "paid") {
       console.log(`Liberando acesso para o aluno: ${emailAluno}`);
 
-      const { data, error } = await supabase.auth.admin.createUser({
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email: emailAluno,
         password: "clinicai24h",
         email_confirm: true
@@ -89,11 +102,11 @@ app.post("/api/webhook/kiwify", async (req, res) => {
     if (statusPedido === "refunded" || statusPedido === "canceled" || statusPedido === "chargedback") {
       console.log(`Bloqueando/Removendo acesso do inadimplente: ${emailAluno}`);
       
-      const { data: listaUsuarios, error: errBusca } = await supabase.auth.admin.listUsers();
+      const { data: listaUsuarios, error: errBusca } = await supabaseAdmin.auth.admin.listUsers();
       const usuarioEncontrado = listaUsuarios?.users?.find(u => u.email.toLowerCase() === emailAluno.toLowerCase());
 
       if (usuarioEncontrado) {
-        const { error: errDelete } = await supabase.auth.admin.deleteUser(usuarioEncontrado.id);
+        const { error: errDelete } = await supabaseAdmin.auth.admin.deleteUser(usuarioEncontrado.id);
         if (errDelete) console.error("Erro ao remover acesso:", errDelete);
       }
 
@@ -119,30 +132,31 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // 1. Busca rápida na tabela do Supabase para ver se existe algum vídeo relacionado à pergunta
-    const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
-    
+    // Busca usando o cliente público para evitar conflitos de políticas de segurança (RLS)
     let videoEncontrado = null;
-    if (listaVideos && listaVideos.length > 0) {
-      // Normaliza o texto digitado pelo aluno para facilitar a busca por aproximação
-      const textoLimpo = message.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-        .replace(/[^a-z0-9 ]/g, ""); // Remove símbolos
+    try {
+      const { data: listaVideos, error: errVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
+      
+      if (!errVideos && listaVideos && listaVideos.length > 0) {
+        const textoLimpo = message.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+          .replace(/[^a-z0-9 ]/g, ""); 
 
-      for (const vid of listaVideos) {
-        // Divide o termo cadastrado (ex: "auriculoterapia-insonia") em pedaços ["auriculoterapia", "insonia"]
-        const palavrasChave = vid.termo.split("-");
-        // Se o aluno digitou TODAS as palavras do termo na mesma frase, ativa o vídeo
-        const bateuTudo = palavrasChave.every(palavra => textoLimpo.includes(palavra));
-        
-        if (bateuTudo) {
-          videoEncontrado = vid;
-          break;
+        for (const vid of listaVideos) {
+          const palavrasChave = vid.termo.split("-");
+          const bateuTudo = palavrasChave.every(palavra => textoLimpo.includes(palavra));
+          
+          if (bateuTudo) {
+            videoEncontrado = vid;
+            break;
+          }
         }
       }
+    } catch (e) {
+      console.log("Aviso: Tabela de vídeos ainda não populada ou inacessível temporariamente.");
     }
 
-    // 2. Chamar a Inteligência Artificial do Groq
+    // Chamada para a Inteligência Artificial do Groq
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -156,7 +170,6 @@ app.post("/api/chat", async (req, res) => {
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     
-    // 3. Devolve a resposta com o objeto do vídeo anexado caso tenha encontrado na tabela
     res.json({ 
       response: respostaIA,
       video: videoEncontrado ? {
@@ -248,7 +261,7 @@ app.get("*", (req, res) => {
 
         <script>
             const sbUrl = "${URL_REAL}";
-            const sbKey = "${KEY_REAL}"; 
+            const sbKey = "${KEY_ANON}"; 
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
@@ -344,7 +357,6 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
-                // Evita que o robô leia códigos ou os textos das janelas extras
                 let elementoClone = elementoPai.cloneNode(true);
                 const frames = elementoClone.querySelectorAll('iframe, button, div.video-wrapper');
                 frames.forEach(el => el.remove());
@@ -408,14 +420,12 @@ app.get("*", (req, res) => {
                 });
             }
 
-            // 📺 Mágica para converter URL normal do YouTube em link embutido (embed)
             function extrairIdYoutube(url) {
                 const regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]*).*/;
                 const match = url.match(regExp);
                 return (match && match[2].length === 11) ? match[2] : null;
             }
 
-            // 📺 Função para abrir ou fechar o player na tela do aluno
             window.alternarPlayerVideo = function(botao, urlVideo) {
                 const idVideo = extrairIdYoutube(urlVideo);
                 const pai = botao.parentElement;
@@ -476,12 +486,11 @@ app.get("*", (req, res) => {
                     if (dados.response) {
                         let blocoHTML = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
                         
-                        // 🎬 Se a rota trouxe informações de vídeo do banco de dados, desenha o botão do player
                         if (dados.video && dados.video.url) {
                             blocoHTML += \`
                             <div class="mt-3 pt-3 border-t border-slate-800/80 text-left">
                                 <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>
-                                <p class="text-xs text-slate-400 mb-2 font-medium">\${dados.video.titulo}</p>
+                                <p class="text-xs text-slate-400 mb-2 font-medium">\txt\${dados.video.titulo}</p>
                                 <button onclick="alternarPlayerVideo(this, '\${dados.video.url}')" class="bg-slate-950 text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-500/30 font-medium px-3 py-1.5 rounded-lg text-xs transition active:scale-95 select-none inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/20">📺 Assistir Prática Técnica</button>
                             </div>\`;
                         }
@@ -516,5 +525,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Webhook da Kiwify e Sistema de Vídeos Ativo!");
+  console.log("🚀 Servidor rodando com Webhook da Kiwify e Sistema de Vídeos Ativo e Blindado!");
 });
