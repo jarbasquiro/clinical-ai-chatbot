@@ -132,7 +132,8 @@ app.post("/api/chat", async (req, res) => {
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
-      
+      console.log("VIDEOS DO BANCO:", listaVideos);
+      console.log("TEXTO DIGITADO:", message);
       if (listaVideos && listaVideos.length > 0) {
         // Junta a pergunta e a resposta técnica para fazer a varredura de termos
         const blocoDeTextoCompleto = (message + " " + respostaIA).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
@@ -140,7 +141,7 @@ app.post("/api/chat", async (req, res) => {
         for (const vid of listaVideos) {
           if (!vid.termo) continue;
           const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
-          
+          console.log("COMPARANDO:", alunoTextoLimpo, "X", termoLimpo);
           if (blocoDeTextoCompleto.includes(termoBanco)) {
             videoEncontrado = vid;
             break;
