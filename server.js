@@ -41,122 +41,92 @@ app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 // ============================================================
-// 🛡️ SEGURANÇA MÁXIMA: MAPEAMENTO INTELIGENTE DE CHAVES DO SUPABASE
+// 🛡️ SEGURANÇA BLINDADA: CAPTURA DE VARIÁVEIS SEM QUEBRAR O SERVIDOR
 // ============================================================
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
 const GROQ_KEY = process.env.GROQ_API_KEY;
-
-// Chave Anon/Service para operações gerais e leitura de tabelas
 const KEY_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-// Chave exclusiva de Service/Admin para o Webhook criar alunos sem travar
 const KEY_SERVICE = process.env.SUPABASE_SERVICE_KEY || KEY_ANON;
 
-// Clientes separados para evitar conflito de privilégios no banco de dados
-const supabasePublic = createClient(URL_REAL, KEY_ANON);
-const supabaseAdmin = createClient(URL_REAL, KEY_SERVICE, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+let supabasePublic = null;
+let supabaseAdmin = null;
+let groq = null;
 
-const groq = new Groq({ apiKey: GROQ_KEY });
+try {
+  if (URL_REAL && KEY_ANON) {
+    supabasePublic = createClient(URL_REAL, KEY_ANON);
+    supabaseAdmin = createClient(URL_REAL, KEY_SERVICE, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+  }
+  if (GROQ_KEY) {
+    groq = new Groq({ apiKey: GROQ_KEY });
+  }
+} catch (err) {
+  console.error("Erro crítico na inicialização das chaves:", err.message);
+}
 
 // ==========================================
-// 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO (USA CLIENTE ADMIN)
+// 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO
 // ==========================================
 app.post("/api/webhook/kiwify", async (req, res) => {
   try {
+    if (!supabaseAdmin) return res.status(500).send("Banco de dados nao configurado no servidor.");
+    
     const dadosKiwify = req.body;
-    console.log("Recebido Webhook da Kiwify:", dadosKiwify);
-
     const statusPedido = dadosKiwify.order_status;
     const emailAluno = dadosKiwify.Customer?.email || dadosKiwify.email;
 
-    if (!emailAluno) {
-      return res.status(400).json({ error: "E-mail do aluno nao encontrado no disparo." });
-    }
+    if (!emailAluno) return res.status(400).json({ error: "E-mail nao encontrado." });
 
     if (statusPedido === "paid") {
-      console.log(`Liberando acesso para o aluno: ${emailAluno}`);
-
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email: emailAluno,
         password: "clinicai24h",
         email_confirm: true
       });
-
-      if (error) {
-        if (error.message.includes("already exists") || error.status === 422) {
-          console.log("Aluno ja possuía cadastro ativo no sistema.");
-          return res.status(200).send("Usuário ja ativo.");
-        }
-        console.error("Erro ao criar aluno no Supabase via Webhook:", error);
-        return res.status(500).json({ error: error.message });
-      }
-
-      return res.status(200).send("Acesso de Aluno criado com sucesso!");
+      if (error && !error.message.includes("already exists")) return res.status(500).json({ error: error.message });
+      return res.status(200).send("Acesso criado!");
     }
-
-    if (statusPedido === "refunded" || statusPedido === "canceled" || statusPedido === "chargedback") {
-      console.log(`Bloqueando/Removendo acesso do inadimplente: ${emailAluno}`);
-      
-      const { data: listaUsuarios, error: errBusca } = await supabaseAdmin.auth.admin.listUsers();
-      const usuarioEncontrado = listaUsuarios?.users?.find(u => u.email.toLowerCase() === emailAluno.toLowerCase());
-
-      if (usuarioEncontrado) {
-        const { error: errDelete } = await supabaseAdmin.auth.admin.deleteUser(usuarioEncontrado.id);
-        if (errDelete) console.error("Erro ao remover acesso:", errDelete);
-      }
-
-      return res.status(200).send("Acesso revogado com sucesso.");
-    }
-
-    res.status(200).send("Webhook processado (sem alteração de status).");
-
+    res.status(200).send("Processado.");
   } catch (error) {
-    console.error("Erro interno no Webhook da Kiwify:", error);
-    res.status(500).send("Erro interno no processamento do servidor.");
+    res.status(500).send("Erro interno no webhook.");
   }
 });
 
 // ============================================================
-// 🤖 ROTA DO CHAT PROTEGIDA E COM INTEGRAÇÃO DE VÍDEOS REAIS
+// 🤖 ROTA DO CHAT BLINDADA COM RETORNO DE ERRO DETALHADO
 // ============================================================
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Mensagem vazia." });
 
-    if (!message) {
-      return res.status(400).json({ error: "Mensagem vazia." });
+    if (!groq) {
+      return res.status(500).json({ error: "A chave GROQ_API_KEY nao foi detectada ou configurada corretamente no Render." });
+    }
+    if (!supabasePublic) {
+      return res.status(500).json({ error: "As chaves do Supabase nao foram detectadas ou configuradas corretamente no Render." });
     }
 
-    // Busca usando o cliente público para evitar conflitos de políticas de segurança (RLS)
+    // Busca de vídeos opcional (se falhar, o chat continua funcionando!)
     let videoEncontrado = null;
     try {
-      const { data: listaVideos, error: errVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
-      
-      if (!errVideos && listaVideos && listaVideos.length > 0) {
-        const textoLimpo = message.toLowerCase()
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
-          .replace(/[^a-z0-9 ]/g, ""); 
-
+      const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
+      if (listaVideos && listaVideos.length > 0) {
+        const textoLimpo = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, "");
         for (const vid of listaVideos) {
           const palavrasChave = vid.termo.split("-");
-          const bateuTudo = palavrasChave.every(palavra => textoLimpo.includes(palavra));
-          
-          if (bateuTudo) {
+          if (palavrasChave.every(palavra => textoLimpo.includes(palavra))) {
             videoEncontrado = vid;
             break;
           }
         }
       }
     } catch (e) {
-      console.log("Aviso: Tabela de vídeos ainda não populada ou inacessível temporariamente.");
+      console.log("Erro temporario ao ler tabela de videos:", e.message);
     }
 
-    // Chamada para a Inteligência Artificial do Groq
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -168,19 +138,13 @@ app.post("/api/chat", async (req, res) => {
       model: "llama-3.1-8b-instant", 
     });
 
-    const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
-    
     res.json({ 
-      response: respostaIA,
-      video: videoEncontrado ? {
-        url: videoEncontrado.youtube_url,
-        titulo: videoEncontrado.titulo
-      } : null
+      response: completion.choices[0]?.message?.content || "Sem resposta.",
+      video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
     });
 
   } catch (error) {
-    console.error("Erro interno na API do Groq:", error);
-    res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
+    res.status(500).json({ error: `Erro na IA ou Chaves: ${error.message}` });
   }
 });
 
@@ -488,9 +452,9 @@ app.get("*", (req, res) => {
                         
                         if (dados.video && dados.video.url) {
                             blocoHTML += \`
-                            <div class="mt-3 pt-3 border-t border-slate-800/80 text-left">
+                            <div class="video-section mt-3 pt-3 border-t border-slate-800/80 text-left">
                                 <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>
-                                <p class="text-xs text-slate-400 mb-2 font-medium">\txt\${dados.video.titulo}</p>
+                                <p class="text-xs text-slate-400 mb-2 font-medium">\${dados.video.titulo}</p>
                                 <button onclick="alternarPlayerVideo(this, '\${dados.video.url}')" class="bg-slate-950 text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-500/30 font-medium px-3 py-1.5 rounded-lg text-xs transition active:scale-95 select-none inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/20">📺 Assistir Prática Técnica</button>
                             </div>\`;
                         }
