@@ -105,7 +105,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// Rota do Chat protegida com Integração do Banco de Vídeos
+// Rota do Chat protegida com Integração do Banco de Vídeos (LÓGICA CORRIGIDA)
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -114,18 +114,34 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
+    // 1. CHAMA A IA PRIMEIRO PARA OBTER A RESPOSTA TÉCNICA
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+        },
+        { role: "user", content: message }
+      ],
+      model: "llama-3.1-8b-instant", 
+    });
+
+    const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
+    
+    // 2. BUSCA INTELIGENTE EXPANDIDA (Varre a pergunta do aluno E a resposta gerada pela IA)
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
       
       if (listaVideos && listaVideos.length > 0) {
-        const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+        // Junta a pergunta e a resposta técnica para fazer a varredura de termos
+        const blocoDeTextoCompleto = (message + " " + respostaIA).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
         
         for (const vid of listaVideos) {
           if (!vid.termo) continue;
           const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
           
-          if (textoUsuario.includes(termoBanco) || termoBanco.includes(textoUsuario)) {
+          if (blocoDeTextoCompleto.includes(termoBanco)) {
             videoEncontrado = vid;
             break;
           }
@@ -135,19 +151,7 @@ app.post("/api/chat", async (req, res) => {
       console.error("Erro ao buscar tabela de videos:", e.message);
     }
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objective exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
-        },
-        { role: "user", content: message }
-      ],
-      model: "llama-3.1-8b-instant", 
-    });
-
-    const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
-    
+    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
     res.json({ 
       response: respostaIA,
       video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
@@ -201,6 +205,7 @@ app.get("*", (req, res) => {
         </div>
 
         <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
+            
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <div class="w-5"></div>
@@ -233,7 +238,6 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // Aqui mantemos a injeção estritamente baseada nas variáveis já resolvidas pelo Node, sem quebrar o interpretador
             const sbUrl = "${URL_REAL}";
             const sbKey = "${KEY_REAL}"; 
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
@@ -333,7 +337,7 @@ app.get("*", (req, res) => {
 
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-Vindas", "")
+                    .replace("🔊 Ouvir Boas-VIndas", "")
                     .replace("⏹️ Parar Leitura", "")
                     .replace("▶️ Assistir Vídeo Prático", "")
                     .trim();
