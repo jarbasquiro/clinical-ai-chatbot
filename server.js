@@ -263,14 +263,14 @@ app.get("*", (req, res) => {
                 const btn = document.getElementById('btn-login');
 
                 if(!email || !password) {
-                    erroDiv.innerText = "Preencha todos os campos.";
+                    erroDiv.innerText = 'Preencha todos os campos.';
                     erroDiv.classList.remove('hidden');
                     return;
                 }
 
                 erroDiv.classList.add('hidden');
                 btn.disabled = true;
-                btn.innerText = "Verificando credenciais...";
+                btn.innerText = 'Verificando credenciais...';
 
                 if(email.toLowerCase() === 'jarbasdsn@gmail.com') {
                     localStorage.setItem('admin_logado', 'true');
@@ -281,15 +281,15 @@ app.get("*", (req, res) => {
                 try {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) {
-                        erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                        erroDiv.innerText = 'Acesso recusado. Verifique os dados ou a assinatura.';
                         erroDiv.classList.remove('hidden');
                         btn.disabled = false;
-                        btn.innerText = "Entrar na Plataforma";
+                        btn.innerText = 'Entrar na Plataforma';
                     } else {
                         mostrarChat();
                     }
                 } catch(e) {
-                    erroDiv.innerText = "Erro ao conectar.";
+                    erroDiv.innerText = 'Erro ao conectar.';
                     erroDiv.classList.remove('hidden');
                     btn.disabled = false;
                 }
@@ -333,13 +333,13 @@ app.get("*", (req, res) => {
                 resetarBotoesAudio();
 
                 let textoParaLer = elementoPai.innerText
-                    .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-Vindas", "")
-                    .replace("⏹️ Parar Leitura", "")
-                    .replace("▶️ Assistir Vídeo Prático", "")
+                    .replace('🔊 Ouvir Resposta', '')
+                    .replace('🔊 Ouvir Boas-Vindas', '')
+                    .replace('⏹️ Parar Leitura', '')
+                    .replace('▶️ Assistir Vídeo Prático', '')
                     .trim();
 
-                textoParaLer = textoParaLer.replace(/\*/g, "").replace(/#/g, "");
+                textoParaLer = textoParaLer.replace(/\*/g, '').replace(/#/g, '');
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
@@ -364,10 +364,10 @@ app.get("*", (req, res) => {
                     falaAtual.lang = 'pt-BR';
                 }
 
-                botaoAtivo = botao;
-                botao.innerHTML = "⏹️ Parar Leitura";
-                botao.classList.remove("text-blue-500");
-                botao.classList.add("text-red-400", "font-bold");
+                botaoAtivo = block;
+                botao.innerHTML = '⏹️ Parar Leitura';
+                botao.classList.remove('text-blue-500');
+                botao.classList.add('text-red-400', 'font-bold');
 
                 falaAtual.onend = function() {
                     resetarBotoesAudio();
@@ -379,13 +379,13 @@ app.get("*", (req, res) => {
             function resetarBotoesAudio() {
                 const botoes = document.querySelectorAll('.btn-audio');
                 botoes.forEach(b => {
-                    if (b.innerText.includes("Boas-Vindas")) {
-                        b.innerHTML = "🔊 Ouvir Boas-Vindas";
+                    if (b.innerText.includes('Boas-Vindas')) {
+                        b.innerHTML = '🔊 Ouvir Boas-Vindas';
                     } else {
-                        b.innerHTML = "🔊 Ouvir Resposta";
+                        b.innerHTML = '🔊 Ouvir Resposta';
                     }
-                    b.classList.remove("text-red-400", "font-bold");
-                    b.classList.add("text-blue-500");
+                    b.classList.remove('text-red-400', 'font-bold');
+                    b.classList.add('text-blue-500');
                 });
                 falaAtual = null;
                 botaoAtivo = null;
@@ -417,11 +417,11 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += `<div class="clear-both w-full flex justify-end"><div style="font-size: ${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> ` + texto + `</div></div>`;
+                container.innerHTML += '<div class="clear-both w-full flex justify-end"><div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> ' + texto + '</div></div>';
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += `<div id="${digitandoId}" style="font-size: ${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>`;
+                container.innerHTML += '<div id="' + digitandoId + '" style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>';
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -439,30 +439,24 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        let htmlMensagem = `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n${dados.response}`;
+                        let htmlMensagem = '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n' + dados.response;
                         
                         if (dados.video) {
-                            htmlMensagem += `
-                                <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5">
-                                    <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span>
-                                    <span class="text-xs text-slate-300 font-medium block truncate">${dados.video.titulo}</span>
-                                    <a href="${dados.video.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a>
-                                </div>
-                            `;
+                            htmlMensagem += ' <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5"> <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span> <span class="text-xs text-slate-300 font-medium block truncate">' + dados.video.titulo + '</span> <a href="' + dados.video.url + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a> </div> ';
                         }
 
-                        htmlMensagem += `<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>`;
+                        htmlMensagem += '<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>';
                         
                         container.innerHTML += htmlMensagem;
                     } else if (dados.error) {
-                        container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ${dados.error}</div>`;
+                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ' + dados.error + '</div>';
                     } else {
-                        container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta inválida.</div>`;
+                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta inválida.</div>';
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>`;
+                    container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>';
                 }
 
                 input.disabled = false;
