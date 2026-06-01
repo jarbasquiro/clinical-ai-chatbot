@@ -34,9 +34,6 @@ for (const caminho of caminhosDist) {
   }
 }
 
-//if (pastaDistEfetiva) {
-//app.use(express.static(pastaDistEfetiva));
-//}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
@@ -117,7 +114,6 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
@@ -143,7 +139,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objective exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -152,7 +148,6 @@ app.post("/api/chat", async (req, res) => {
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     
-    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
     res.json({ 
       response: respostaIA,
       video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
@@ -206,7 +201,6 @@ app.get("*", (req, res) => {
         </div>
 
         <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
-            
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <div class="w-5"></div>
@@ -218,7 +212,7 @@ app.get("*", (req, res) => {
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
                 
-                                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
+                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
                     <span>Tamanho do texto:</span>
                     <button onclick="alterarFonte(-1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A-</button>
                     <button onclick="alterarFonte(1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A+</button>
@@ -239,6 +233,7 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
+            // Aqui mantemos a injeção estritamente baseada nas variáveis já resolvidas pelo Node, sem quebrar o interpretador
             const sbUrl = "${URL_REAL}";
             const sbKey = "${KEY_REAL}"; 
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
@@ -336,7 +331,6 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
-                // Limpa o texto da leitura para ignorar a tag do botão do YouTube se houver
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
                     .replace("🔊 Ouvir Boas-Vindas", "")
@@ -444,7 +438,6 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        // 🚀 RECONSTRÓI A MENSAGEM INJETANDO O BOTÃO VERMELHO DO YOUTUBE SE O BANCO RETORNAR VÍDEO
                         let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
                         
                         if (dados.video) {
