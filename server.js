@@ -73,7 +73,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// API do Chat com buscador de vídeos integrado
+// API do Chat com buscador de vídeos inteligente e flexível
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -83,19 +83,34 @@ app.post("/api/chat", async (req, res) => {
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
+      
       if (listaVideos && listaVideos.length > 0) {
-        const alunoTextoLimpo = message.toLowerCase();
+        const alunoTextoLimpo = message.toLowerCase().trim();
+        
+        // Buscador inteligente por aproximação
         for (const vid of listaVideos) {
+          if (!vid.termo) continue;
+          
           const termoLimpo = vid.termo.toLowerCase().replace(/-/g, " ").replace(/\./g, " ").trim();
-          const palavrasChave = termoLimpo.split(" ");
-          if (palavrasChave.every(p => !p.trim() || alunoTextoLimpo.includes(p.trim()))) {
+          
+          // Se o aluno digitar o termo exato ou se o termo for uma palavra-chave contida na pergunta
+          if (alunoTextoLimpo.includes(termoLimpo) || (termoLimpo.length > 3 && alunoTextoLimpo.includes(termoLimpo))) {
+            videoEncontrado = vid;
+            break;
+          }
+          
+          // Segunda validação: quebra em palavras e busca por termos significativos (ignora palavras com menos de 4 letras)
+          const palavrasChave = termoLimpo.split(" ").filter(p => p.length > 3);
+          const deuMatch = palavrasChave.some(p => alunoTextoLimpo.includes(p));
+          
+          if (deuMatch) {
             videoEncontrado = vid;
             break;
           }
         }
       }
     } catch (e) {
-      console.log("Erro ao ler tabela:", e.message);
+      console.log("Erro ao ler tabela de vídeos:", e.message);
     }
 
     const completion = await groq.chat.completions.create({
@@ -125,4 +140,4 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
-app.listen(port, () => console.log("🚀 Servidor de API ativo e limpo!"));
+app.listen(port, () => console.log("🚀 Servidor de API ativo com busca flexível de vídeos!"));
