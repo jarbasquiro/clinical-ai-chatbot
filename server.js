@@ -109,7 +109,6 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "As chaves do Supabase nao foram detectadas ou configuradas corretamente no Render." });
     }
 
-    // Busca de vídeos opcional (se falhar, o chat continua funcionando!)
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
@@ -408,7 +407,7 @@ app.get("*", (req, res) => {
 
                 containerVideo = document.createElement('div');
                 containerVideo.className = "video-wrapper mt-3 w-full aspect-video rounded-xl overflow-hidden border border-slate-700 bg-black shadow-inner shadow-black/40";
-                containerVideo.innerHTML = \`<iframe class="w-full h-full" src="https://www.youtube.com/embed/${idVideo}?autoplay=1&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>\`;
+                containerVideo.innerHTML = \`<iframe class="w-full h-full" src="https://www.youtube.com/embed/\${idVideo}?autoplay=1&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>\`;
                 
                 pai.appendChild(containerVideo);
                 botao.innerHTML = "❌ Fechar Player de Vídeo";
