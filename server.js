@@ -34,9 +34,6 @@ for (const caminho of caminhosDist) {
   }
 }
 
-//if (pastaDistEfetiva) {
-//app.use(express.static(pastaDistEfetiva));
-//}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
@@ -218,7 +215,7 @@ app.get("*", (req, res) => {
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
                 
-                                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
+                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
                     <span>Tamanho do texto:</span>
                     <button onclick="alterarFonte(-1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A-</button>
                     <button onclick="alterarFonte(1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A+</button>
@@ -227,7 +224,7 @@ app.get("*", (req, res) => {
             
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
-                    <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
+                    <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e professionals para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
                     <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
                 </div>
             </div>
@@ -336,7 +333,6 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
-                // Limpa o texto da leitura para ignorar a tag do botão do YouTube se houver
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
                     .replace("🔊 Ouvir Boas-Vindas", "")
@@ -422,15 +418,15 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> \` + texto + \`</div></div>\`;
+                container.innerHTML += `<div class="clear-both w-full flex justify-end"><div style="font-size: ${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> ` + texto + `</div></div>`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
+                container.innerHTML += `<div id="${digitandoId}" style="font-size: ${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
-                    const urlAcesso = window.location.origin + '/api/chat';
+                    const urlAcesso = '/api/chat';
                     
                     const resposta = await fetch(urlAcesso, {
                         method: 'POST',
@@ -444,31 +440,30 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        // 🚀 RECONSTRÓI A MENSAGEM INJETANDO O BOTÃO VERMELHO DO YOUTUBE SE O BANCO RETORNAR VÍDEO
-                        let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
+                        let htmlMensagem = `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n${dados.response}`;
                         
                         if (dados.video) {
-                            htmlMensagem += \`
+                            htmlMensagem += `
                                 <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5">
                                     <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span>
-                                    <span class="text-xs text-slate-300 font-medium block truncate">\${dados.video.titulo}</span>
-                                    <a href="\${dados.video.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a>
+                                    <span class="text-xs text-slate-300 font-medium block truncate">${dados.video.titulo}</span>
+                                    <a href="${dados.video.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a>
                                 </div>
-                            \`;
+                            `;
                         }
 
-                        htmlMensagem += \`<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        htmlMensagem += `<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>`;
                         
                         container.innerHTML += htmlMensagem;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ${dados.error}</div>`;
                     } else {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
+                        container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta inválida.</div>`;
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
+                    container.innerHTML += `<div style="font-size: ${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>`;
                 }
 
                 input.disabled = false;
