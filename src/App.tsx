@@ -21,7 +21,7 @@ interface Message {
 function App() {
   const [session, setSession] = useState<any>(null);
   const [authorized, setAuthorized] = useState(false);
-  const [fontSize, setFontSize] = useState<number>(16);
+  const [fontSize, setFontSize] = useState<number>(16); // Estado do zoom da fonte
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -159,7 +159,7 @@ function App() {
       <div className="h-screen flex items-center justify-center bg-dark-900 text-white">
         <div className="bg-dark-800 p-8 rounded-2xl border border-dark-700 text-center">
           <h1 className="text-2xl font-bold mb-4">Acesso não liberado</h1>
-          <p className="text-gray-400 mb-6">Sua assinatura ainda não está activa.</p>
+          <p className="text-gray-400 mb-6">Sua assinatura ainda não está ativa.</p>
           <button onClick={() => supabase.auth.signOut()} className="px-5 py-3 rounded-xl bg-accent-700">
             Sair
           </button>
@@ -169,9 +169,28 @@ function App() {
   }
 
   return (
-    <div className="h-screen bg-dark-900 flex flex-col overflow-hidden">
-      {/* HEADER INTEGRADO */}
-      <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-dark-800 border-b border-dark-700 shrink-0">
+    <div className="h-screen bg-dark-900 flex flex-col overflow-hidden relative">
+      
+      {/* BARRA FLUTUANTE EXCLUSIVA PARA AJUSTE DE FONTE (Garante que apareça no celular) */}
+      <div className="absolute top-16 right-4 z-50 flex items-center gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1.5 shadow-2xl">
+        <button
+          onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
+          className="w-8 h-8 flex items-center justify-center bg-dark-700 text-white text-xs font-bold rounded-lg hover:bg-dark-600 active:bg-dark-500 transition-colors"
+          title="Diminuir texto"
+        >
+          A-
+        </button>
+        <button
+          onClick={() => setFontSize(prev => Math.min(prev + 2, 26))}
+          className="w-8 h-8 flex items-center justify-center bg-dark-700 text-white text-xs font-bold rounded-lg hover:bg-dark-600 active:bg-dark-500 transition-colors"
+          title="Aumentar texto"
+        >
+          A+
+        </button>
+      </div>
+
+      {/* HEADER */}
+      <header className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-dark-700 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent-700 flex items-center justify-center shrink-0">
             <Stethoscope className="w-5 h-5 text-white" />
@@ -182,26 +201,7 @@ function App() {
           </div>
         </div>
 
-        {/* GRUPO DE BOTÕES DO SEU CÓDIGO ORIGINAL ATIVO */}
         <div className="flex items-center gap-2">
-          <div className="flex bg-dark-700 rounded-xl border border-dark-600 overflow-hidden">
-            <button
-              onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
-              className="px-3 py-1.5 text-white text-xs font-bold hover:bg-dark-600 active:bg-dark-500 transition-colors"
-              title="Diminuir Fonte"
-            >
-              A-
-            </button>
-            <div className="w-[1px] bg-dark-600" />
-            <button
-              onClick={() => setFontSize(prev => Math.min(prev + 2, 24))}
-              className="px-3 py-1.5 text-white text-xs font-bold hover:bg-dark-600 active:bg-dark-500 transition-colors"
-              title="Aumentar Fonte"
-            >
-              A+
-            </button>
-          </div>
-
           <button onClick={exportPDF} className="px-3 py-1.5 rounded-xl bg-accent-700 text-white text-xs font-medium hover:bg-accent-600 transition-colors">
             Exportar PDF
           </button>
