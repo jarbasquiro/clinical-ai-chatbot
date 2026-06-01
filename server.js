@@ -19,8 +19,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
+app.use(express.static(path.join(baseDir, "public")));
+app.use(express.static(path.join(baseDir, "project", "public")));
+
 // ============================================================
-// 🛡️ SEGURANÇA MÁXIMA: CONFIGURAÇÃO DE AMBIENTE BLINDADA
+// 🛡️ CONFIGURAÇÃO DE AMBIENTE SECURE
 // ============================================================
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://cygqomkyiheoijarrnsu.supabase.co";
 const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -215,8 +218,9 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            const sbUrl = '${URL_REAL}';
-            const sbKey = '${KEY_REAL}'; 
+            // Injeção limpa de valores como strings estáticas, sem usar template literals conflitantes com o interpretador back-end
+            const sbUrl = "` + URL_REAL + `";
+            const sbKey = "` + KEY_REAL + `";
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
@@ -446,5 +450,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando limpo e com erro de sintaxe corrigido!");
+  console.log("🚀 Servidor rodando limpo com isolamento estrito de tags!");
 });
