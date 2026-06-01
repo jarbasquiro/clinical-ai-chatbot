@@ -130,38 +130,54 @@ app.post("/api/chat", async (req, res) => {
     
     // 2. BUSCA INTELIGENTE EXPANDIDA (Varre a pergunta do aluno E a resposta gerada pela IA)
     let videoEncontrado = null;
-    try {
-      const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
-      console.log("VIDEOS DO BANCO:", listaVideos);
-      console.log("TEXTO DIGITADO:", message);
-      if (listaVideos && listaVideos.length > 0) {
-        // Junta a pergunta e a resposta técnica para fazer a varredura de termos
-        const blocoDeTextoCompleto = (message + " " + respostaIA).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
-        
-        for (const vid of listaVideos) {
-          if (!vid.termo) continue;
-          const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
-          console.log("COMPARANDO:", alunoTextoLimpo, "X", termoLimpo);
-          if (blocoDeTextoCompleto.includes(termoBanco)) {
-            videoEncontrado = vid;
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao buscar tabela de videos:", e.message);
-    }
 
-    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
-    res.json({ 
-      response: respostaIA,
-      video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
-    });
-  } catch (error) {
-    console.error("Erro interno na API do Groq:", error);
-    res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
+try {
+
+  const { data: listaVideos, error } =
+    await supabasePublic
+      .from("videos")
+      .select("*");
+
+  if (error) {
+    console.error(error);
   }
-});
+
+  if (listaVideos?.length) {
+
+    const textoUsuario = message
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    videoEncontrado = listaVideos.find(video => {
+
+      const termoBanco = (video.termo || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+      return (
+        textoUsuario.includes(termoBanco)
+      );
+
+    });
+
+    console.log(
+      "VIDEO ENCONTRADO:",
+      videoEncontrado
+    );
+  }
+
+} catch (e) {
+
+  console.error(
+    "Erro ao buscar vídeo:",
+    e
+  );
+
+}
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
