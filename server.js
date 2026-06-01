@@ -34,6 +34,9 @@ for (const caminho of caminhosDist) {
   }
 }
 
+//if (pastaDistEfetiva) {
+//app.use(express.static(pastaDistEfetiva));
+//}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
@@ -105,7 +108,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// Rota do Chat protegida com Integração do Banco de Vídeos (LÓGICA CORRIGIDA)
+// Rota do Chat protegida com Integração do Banco de Vídeos
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -114,7 +117,28 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // 1. CHAMA A IA PRIMEIRO PARA OBTER A RESPOSTA TÉCNICA
+    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
+    let videoEncontrado = null;
+    try {
+      const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
+      
+      if (listaVideos && listaVideos.length > 0) {
+        const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+        
+        for (const vid of listaVideos) {
+          if (!vid.termo) continue;
+          const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+          
+          if (textoUsuario.includes(termoBanco) || termoBanco.includes(textoUsuario)) {
+            videoEncontrado = vid;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao buscar tabela de videos:", e.message);
+    }
+
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -128,56 +152,16 @@ app.post("/api/chat", async (req, res) => {
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     
-    // 2. BUSCA INTELIGENTE EXPANDIDA (Varre a pergunta do aluno E a resposta gerada pela IA)
-    let videoEncontrado = null;
-
-try {
-
-  const { data: listaVideos, error } =
-    await supabasePublic
-      .from("videos")
-      .select("*");
-
-  if (error) {
-    console.error(error);
-  }
-
-  if (listaVideos?.length) {
-
-    const textoUsuario = message
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-
-    videoEncontrado = listaVideos.find(video => {
-
-      const termoBanco = (video.termo || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
-
-      return (
-        textoUsuario.includes(termoBanco)
-      );
-
+    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
+    res.json({ 
+      response: respostaIA,
+      video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
     });
-
-    console.log(
-      "VIDEO ENCONTRADO:",
-      videoEncontrado
-    );
+  } catch (error) {
+    console.error("Erro interno na API do Groq:", error);
+    res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
   }
-
-} catch (e) {
-
-  console.error(
-    "Erro ao buscar vídeo:",
-    e
-  );
-
-}
+});
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -234,7 +218,7 @@ app.get("*", (req, res) => {
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
                 
-                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
+                                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
                     <span>Tamanho do texto:</span>
                     <button onclick="alterarFonte(-1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A-</button>
                     <button onclick="alterarFonte(1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A+</button>
@@ -352,9 +336,10 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
+                // Limpa o texto da leitura para ignorar a tag do botão do YouTube se houver
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-VIndas", "")
+                    .replace("🔊 Ouvir Boas-Vindas", "")
                     .replace("⏹️ Parar Leitura", "")
                     .replace("▶️ Assistir Vídeo Prático", "")
                     .trim();
@@ -459,6 +444,7 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
+                        // 🚀 RECONSTRÓI A MENSAGEM INJETANDO O BOTÃO VERMELHO DO YOUTUBE SE O BANCO RETORNAR VÍDEO
                         let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
                         
                         if (dados.video) {
