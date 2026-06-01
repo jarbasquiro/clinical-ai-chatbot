@@ -41,7 +41,7 @@ app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 // ============================================================
-// 🛡️ SEGURANÇA BLINDADA: CAPTURA DE VARIÁVEIS SEM QUEBRAR O SERVIDOR
+// 🛡️ SEGURANÇA BLINDADA: CAPTURA DE VARIÁVEIS DO RENDER
 // ============================================================
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
 const GROQ_KEY = process.env.GROQ_API_KEY;
@@ -110,23 +110,19 @@ app.post("/api/chat", async (req, res) => {
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
       
       if (listaVideos && listaVideos.length > 0) {
-        // 1. Limpa e normaliza a frase que o ALUNO digitou
-        const alunoTextoLimpo = message.toLowerCase()
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-          .replace(/[^a-z0-9]/g, " "); // Substitui símbolos e pontos por espaços básicos
+        // 1. Limpa o texto do aluno deixando tudo minúsculo
+        const alunoTextoLimpo = message.toLowerCase();
 
         for (const vid of listaVideos) {
-          // 2. Limpa e normaliza o TERMO vindo do banco de dados (ex: "auriculoterapia-acne.")
-          const termoLimpo = vid.termo.toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, " ") // Tira o ponto final ou qualquer traço solto
-            .trim();
-
-          // Divide o termo limpo em palavras individuais
-          const palavrasChave = termoLimpo.split(/\s+/).filter(p => p.length > 0);
+          // 2. Limpa o termo do banco tirando hifens ou pontos e transforma em palavras soltas
+          const termoLimpo = vid.termo.toLowerCase().replace(/-/g, " ").replace(/\./g, " ").trim();
+          const palavrasChave = termoLimpo.split(" ");
           
-          // Confere se cada palavra-chave do termo está contida na frase do aluno
-          const bateuTudo = palavrasChave.every(palavra => alunoTextoLimpo.includes(palavra));
+          // Confere se cada palavra do termo está contida na frase do aluno
+          const bateuTudo = palavrasChave.every(palavra => {
+            if (!palavra.trim()) return true;
+            return alunoTextoLimpo.includes(palavra.trim());
+          });
           
           if (bateuTudo && palavrasChave.length > 0) {
             videoEncontrado = vid;
@@ -135,14 +131,14 @@ app.post("/api/chat", async (req, res) => {
         }
       }
     } catch (e) {
-      console.log("Erro temporario ao ler tabela de videos:", e.message);
+      console.log("Erro ao ler tabela de videos:", e.message);
     }
 
     const completion = await groq.chat.completions.create({
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre adjustments, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -337,7 +333,7 @@ app.get("*", (req, res) => {
                 frames.forEach(el => el.remove());
 
                 let textoParaLer = elementoClone.innerText.trim();
-                textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
+                textoParaLer = textoParaLer.split("*").join("").split("#").join("");
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
@@ -396,9 +392,14 @@ app.get("*", (req, res) => {
             }
 
             function extrairIdYoutube(url) {
-                const regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]*).*/;
-                const match = url.match(regExp);
-                return (match && match[2].length === 11) ? match[2] : null;
+                if (!url) return null;
+                if (url.includes('watch?v=')) {
+                    return url.split('watch?v=')[1].split('&')[0];
+                }
+                if (url.includes('youtu.be/')) {
+                    return url.split('youtu.be/')[1].split('?')[0];
+                }
+                return null;
             }
 
             window.alternarPlayerVideo = function(botao, urlVideo) {
@@ -419,7 +420,7 @@ app.get("*", (req, res) => {
 
                 containerVideo = document.createElement('div');
                 containerVideo.className = "video-wrapper mt-3 w-full aspect-video rounded-xl overflow-hidden border border-slate-700 bg-black shadow-inner shadow-black/40";
-                containerVideo.innerHTML = \`<iframe class="w-full h-full" src="https://www.youtube.com/embed/${idVideo}?autoplay=1&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>\`;
+                containerVideo.innerHTML = '<iframe class="w-full h-full" src="https://www.youtube.com/embed/' + idVideo + '?autoplay=1&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
                 
                 pai.appendChild(containerVideo);
                 botao.innerHTML = "❌ Fechar Player de Vídeo";
@@ -437,11 +438,11 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> \` + texto + \`</div></div>\`;
+                container.innerHTML += '<div class="clear-both w-full flex justify-end"><div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> ' + texto + '</div></div>';
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
+                container.innerHTML += '<div id="' + digitandoId + '" style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>';
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -459,29 +460,29 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        let blocoHTML = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
+                        let blocoHTML = '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n' + dados.response;
                         
                         if (dados.video && dados.video.url) {
-                            blocoHTML += \`
-                            <div class="video-section mt-3 pt-3 border-t border-slate-800/80 text-left">
-                                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>
-                                <p class="text-xs text-slate-400 mb-2 font-medium">\${dados.video.titulo}</p>
-                                <button onclick="alternarPlayerVideo(this, '\${dados.video.url}')" class="bg-slate-950 text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-500/30 font-medium px-3 py-1.5 rounded-lg text-xs transition active:scale-95 select-none inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/20">📺 Assistir Prática Técnica</button>
-                            </div>\`;
+                            blocoHTML += '<!-- video -->' +
+                            '<div class="video-section mt-3 pt-3 border-t border-slate-800/80 text-left">' +
+                                '<span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>' +
+                                '<p class="text-xs text-slate-400 mb-2 font-medium">' + dados.video.titulo + '</p>' +
+                                '<button onclick="alternarPlayerVideo(this, \'' + dados.video.url + '\')" class="bg-slate-950 text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-500/30 font-medium px-3 py-1.5 rounded-lg text-xs transition active:scale-95 select-none inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/20">📺 Assistir Prática Técnica</button>' +
+                            '</div>';
                         }
 
-                        blocoHTML += \`<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        blocoHTML += '<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>';
                         container.innerHTML += blocoHTML;
 
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ' + dados.error + '</div>';
                     } else {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
+                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>';
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
+                    container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>';
                 }
 
                 input.disabled = false;
@@ -500,5 +501,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Buscador Inteligente e Blindado Ativo!");
+  console.log("🚀 Servidor rodando limpo e sem travas de escape de strings!");
 });
