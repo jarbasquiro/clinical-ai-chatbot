@@ -9,6 +9,7 @@
 </head>
 <body class="bg-slate-950 text-slate-50 min-h-screen w-full flex flex-col justify-center items-center font-sans p-2 sm:p-4 selection:bg-blue-500/30">
     
+    <!-- TELA DE LOGIN -->
     <div id="login-screen" class="w-full max-w-md bg-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-800 text-center space-y-4">
         <div class="w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20 bg-slate-950 flex items-center justify-center">
             <img src="/logo.jpg" alt="CLINIC-AI 24H" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?q=80&w=120&auto=format&fit=crop'">
@@ -33,6 +34,7 @@
         <p class="text-[11px] text-slate-500">Liberado automaticamente após a assinatura na Kiwify.</p>
     </div>
 
+    <!-- TELA DO CHAT -->
     <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
         <div>
             <div class="flex justify-between items-center mb-2">
@@ -49,6 +51,10 @@
         <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
             <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
                 <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Qual técnica ou caso clínico deseja pesquisar hoje?
+                <div class="mt-2 flex gap-2">
+                    <button onclick="falarTexto(this.parentElement.parentElement.innerText)" class="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white text-[11px] px-2 py-1 rounded transition active:scale-95">🔊 Ouvir Resposta</button>
+                    <button onclick="pararAudio()" class="bg-slate-950 border border-slate-800 text-red-400 hover:text-red-300 text-[11px] px-2 py-1 rounded transition active:scale-95 hidden btn-parar">⏹ Parar Áudio</button>
+                </div>
             </div>
         </div>
 
@@ -59,7 +65,7 @@
     </div>
 
     <script>
-        let tamanhoAtual = 16;
+        let mensagemAtualUtterance = null;
 
         function verificarSessao() {
             if(localStorage.getItem('admin_logado') === 'true') {
@@ -86,12 +92,13 @@
                 mostrarChat();
                 return;
             } else {
-                erroDiv.innerText = "Acesso exclusivo de administrador temporariamente.";
+                erroDiv.innerText = "Acesso recusado.";
                 erroDiv.classList.remove('hidden');
             }
         }
 
         function realizarLogout() {
+            pararAudio();
             localStorage.removeItem('admin_logado');
             window.location.reload();
         }
@@ -104,6 +111,29 @@
         function mostrarLogin() {
             document.getElementById('app-screen').style.display = 'none';
             document.getElementById('login-screen').style.display = 'block';
+        }
+
+        // SISTEMA DE LEITURA DE ÁUDIO (VOZ)
+        function falarTexto(textoCompleto) {
+            window.speechSynthesis.cancel();
+            
+            let textoLimpo = textoCompleto.replace('Assistente:', '').replace('🔊 Ouvir Resposta', '').replace('⏹ Parar Áudio', '').replace(/[*_#-]/g, '').trim();
+            
+            mensagemAtualUtterance = new SpeechSynthesisUtterance(textoLimpo);
+            mensagemAtualUtterance.lang = 'pt-BR';
+            mensagemAtualUtterance.rate = 1.1; 
+
+            document.querySelectorAll('.btn-parar').forEach(b => b.classList.add('hidden'));
+            
+            mensagemAtualUtterance.onend = () => {
+                document.querySelectorAll('.btn-parar').forEach(b => b.classList.add('hidden'));
+            };
+
+            window.speechSynthesis.speak(mensagemAtualUtterance);
+        }
+
+        function pararAudio() {
+            window.speechSynthesis.cancel();
         }
 
         function extrairIdYoutube(url) {
@@ -139,6 +169,7 @@
 
             if (!texto) return;
 
+            pararAudio();
             input.value = '';
             input.disabled = true;
             btn.disabled = true;
@@ -164,6 +195,11 @@
                 if (dados.response) {
                     let blocoHTML = '<div class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n' + dados.response;
                     
+                    blocoHTML += '<div class="mt-3 pt-2 border-t border-slate-800/40 flex gap-2">' +
+                        '<button onclick="falarTexto(this.parentElement.parentElement.innerText)" class="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white text-[11px] px-2 py-1 rounded transition active:scale-95">🔊 Ouvir Resposta</button>' +
+                        '<button onclick="pararAudio()" class="bg-slate-950 border border-slate-800 text-red-400 hover:text-red-300 text-[11px] px-2 py-1 rounded transition active:scale-95">静态 Parar Áudio</button>' +
+                    '</div>';
+
                     if (dados.video && dados.video.url) {
                         blocoHTML += '<div class="video-section mt-3 pt-3 border-t border-slate-800/80 text-left">' +
                             '<span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>' +
