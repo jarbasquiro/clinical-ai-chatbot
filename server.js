@@ -26,7 +26,8 @@ const publicPath = fs.existsSync(path.join(baseDir, "public"))
 
 app.use(express.static(publicPath));
 
-const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+// CORREÇÃO: Puxa dinamicamente a URL correta configurada no Render (Ambiente)
+const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const KEY_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const KEY_SERVICE = process.env.SUPABASE_SERVICE_KEY || KEY_ANON;
@@ -85,21 +86,21 @@ app.post("/api/chat", async (req, res) => {
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
       
       if (listaVideos && listaVideos.length > 0) {
-        const alunoTextoLimpo = message.toLowerCase().trim();
+        // Remove traços, acentos e deixa tudo minúsculo para comparar sem falhas
+        const alunoTextoLimpo = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
         
-        // Buscador inteligente por aproximação
         for (const vid of listaVideos) {
           if (!vid.termo) continue;
           
-          const termoLimpo = vid.termo.toLowerCase().replace(/-/g, " ").replace(/\./g, " ").trim();
+          const termoLimpo = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
           
-          // Se o aluno digitar o termo exato ou se o termo for uma palavra-chave contida na pergunta
-          if (alunoTextoLimpo.includes(termoLimpo) || (termoLimpo.length > 3 && alunoTextoLimpo.includes(termoLimpo))) {
+          // Validação por palavra contida ou aproximação direta
+          if (alunoTextoLimpo.includes(termoLimpo) || termoLimpo.includes(alunoTextoLimpo)) {
             videoEncontrado = vid;
             break;
           }
           
-          // Segunda validação: quebra em palavras e busca por termos significativos (ignora palavras com menos de 4 letras)
+          // Segunda validação: varre palavra por palavra (ignora termos curtos como de, para, com)
           const palavrasChave = termoLimpo.split(" ").filter(p => p.length > 3);
           const deuMatch = palavrasChave.some(p => alunoTextoLimpo.includes(p));
           
