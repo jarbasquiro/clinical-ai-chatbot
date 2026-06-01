@@ -110,15 +110,12 @@ app.post("/api/chat", async (req, res) => {
       const { data: listaVideos } = await supabasePublic.from("videos").select("termo, youtube_url, titulo");
       
       if (listaVideos && listaVideos.length > 0) {
-        // 1. Limpa o texto do aluno deixando tudo minúsculo
         const alunoTextoLimpo = message.toLowerCase();
 
         for (const vid of listaVideos) {
-          // 2. Limpa o termo do banco tirando hifens ou pontos e transforma em palavras soltas
           const termoLimpo = vid.termo.toLowerCase().replace(/-/g, " ").replace(/\./g, " ").trim();
           const palavrasChave = termoLimpo.split(" ");
           
-          // Confere se cada palavra do termo está contida na frase do aluno
           const bateuTudo = palavrasChave.every(palavra => {
             if (!palavra.trim()) return true;
             return alunoTextoLimpo.includes(palavra.trim());
@@ -265,14 +262,16 @@ app.get("*", (req, res) => {
                 }
 
                 erroDiv.classList.add('hidden');
-                btn.disabled = true;
-                btn.innerText = "Verificando credenciais...";
-
+                
+                // 🔥 CORREÇÃO CRÍTICA: Se for o e-mail do Jarbas, entra direto sem travar o botão!
                 if(email.toLowerCase() === 'jarbasdsn@gmail.com') {
                     localStorage.setItem('admin_logado', 'true');
                     mostrarChat();
                     return;
                 }
+
+                btn.disabled = true;
+                btn.innerText = "Verificando credenciais...";
 
                 try {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -288,6 +287,7 @@ app.get("*", (req, res) => {
                     erroDiv.innerText = "Erro ao conectar.";
                     erroDiv.classList.remove('hidden');
                     btn.disabled = false;
+                    btn.innerText = "Entrar na Plataforma";
                 }
             }
 
@@ -501,5 +501,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando limpo e sem travas de escape de strings!");
+  console.log("🚀 Servidor rodando com Correção Crítica no Fluxo de Login!");
 });
