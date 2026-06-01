@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-
 import {
   Stethoscope,
   Sparkles,
@@ -7,13 +6,9 @@ import {
 
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-
 import { supabase } from './lib/supabase';
-
 import { checkSubscription } from './lib/checkSubscription';
-
 import Auth from './components/Auth';
-
 import jsPDF from 'jspdf';
 
 interface Message {
@@ -24,31 +19,22 @@ interface Message {
 }
 
 function App() {
-  const [session, setSession] =
-    useState<any>(null);
+  const [session, setSession] = useState<any>(null);
+  const [authorized, setAuthorized] = useState(false);
+  const [fontSize, setFontSize] = useState<number>(16); // Estado para controlar o tamanho da fonte
+  
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: 'Olá! Sou o CLINIC-AI 24H, seu assistente clínico especializado.',
+      isBot: true,
+      timestamp: new Date(),
+    },
+  ]);
 
-  const [authorized, setAuthorized] =
-    useState(false);
-
-  const [messages, setMessages] =
-    useState<Message[]>([
-      {
-        id: '1',
-        text:
-          'Olá! Sou o CLINIC-AI 24H, seu assistente clínico especializado.',
-        isBot: true,
-        timestamp: new Date(),
-      },
-    ]);
-
-  const [favorites, setFavorites] =
-    useState<string[]>([]);
-
-  const [isLoading, setIsLoading] =
-    useState(false);
-
-  const messagesEndRef =
-    useRef<HTMLDivElement>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth
@@ -57,27 +43,17 @@ function App() {
         setSession(session);
 
         if (session?.user?.email) {
-          const allowed =
-            await checkSubscription(
-              session.user.email
-            );
-
+          const allowed = await checkSubscription(session.user.email);
           setAuthorized(allowed);
         }
       });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
 
         if (session?.user?.email) {
-          const allowed =
-            await checkSubscription(
-              session.user.email
-            );
-
+          const allowed = await checkSubscription(session.user.email);
           setAuthorized(allowed);
         }
       }
@@ -92,32 +68,20 @@ function App() {
     });
   }, [messages]);
 
-  const handleFavorite = (
-    message: string
-  ) => {
-    setFavorites((prev) => [
-      ...prev,
-      message,
-    ]);
+  const handleFavorite = (message: string) => {
+    setFavorites((prev) => [...prev, message]);
   };
 
   const exportPDF = () => {
     const doc = new jsPDF();
-
     doc.setFontSize(20);
-
     doc.text('CLINIC-AI 24H', 20, 20);
-
     doc.setFontSize(12);
-
     let y = 40;
 
     favorites.forEach((item) => {
-      const lines =
-        doc.splitTextToSize(item, 170);
-
+      const lines = doc.splitTextToSize(item, 170);
       doc.text(lines, 20, y);
-
       y += lines.length * 7 + 10;
 
       if (y > 260) {
@@ -126,14 +90,10 @@ function App() {
       }
     });
 
-    doc.save(
-      'protocolos-clinicos.pdf'
-    );
+    doc.save('protocolos-clinicos.pdf');
   };
 
-  const handleSendMessage = async (
-    text: string
-  ) => {
+  const handleSendMessage = async (text: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -141,22 +101,16 @@ function App() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-    ]);
-
+    setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      // Formata o histórico de mensagens no padrão esperado pelo seu servidor backend
       const chatHistory = messages.map((msg) => ({
         role: msg.isBot ? 'assistant' : 'user',
         content: msg.text,
       }));
 
-      // Faz a chamada direta para o seu servidor web ativo no Render
-      const response = await fetch('https://clinical-ai-chatbot.onrender.com/chat', {
+      const response = await fetch('https://clinical-ai-chatbot.onrender.com/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -172,46 +126,25 @@ function App() {
       }
 
       const data = await response.json();
-      
-      // Captura o texto retornado pela inteligência artificial
       const botResponseText = data.response || data.text || 'Sem resposta cadastrada.';
 
       const botMessage: Message = {
-        id: (
-          Date.now() + 1
-        ).toString(),
-
+        id: (Date.now() + 1).toString(),
         text: botResponseText,
-
         isBot: true,
-
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [
-        ...prev,
-        botMessage,
-      ]);
+      setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error(error);
-
       const errorMessage: Message = {
-        id: (
-          Date.now() + 1
-        ).toString(),
-
-        text:
-          'Erro ao processar mensagem. Verifique a conexão com o servidor.',
-
+        id: (Date.now() + 1).toString(),
+        text: 'Erro ao processar mensagem. Verifique a conexão com o servidor.',
         isBot: true,
-
         timestamp: new Date(),
       };
-
-      setMessages((prev) => [
-        ...prev,
-        errorMessage,
-      ]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -224,26 +157,12 @@ function App() {
   if (!authorized) {
     return (
       <div className="h-screen flex items-center justify-center bg-dark-900 text-white">
-
         <div className="bg-dark-800 p-8 rounded-2xl border border-dark-700 text-center">
-
-          <h1 className="text-2xl font-bold mb-4">
-            Acesso não liberado
-          </h1>
-
-          <p className="text-gray-400 mb-6">
-            Sua assinatura ainda não está ativa.
-          </p>
-
-          <button
-            onClick={() =>
-              supabase.auth.signOut()
-            }
-            className="px-5 py-3 rounded-xl bg-accent-700"
-          >
+          <h1 className="text-2xl font-bold mb-4">Acesso não liberado</h1>
+          <p className="text-gray-400 mb-6">Sua assinatura ainda não está ativa.</p>
+          <button onClick={() => supabase.auth.signOut()} className="px-5 py-3 rounded-xl bg-accent-700">
             Sair
           </button>
-
         </div>
       </div>
     );
@@ -251,80 +170,63 @@ function App() {
 
   return (
     <div className="h-screen bg-dark-900 flex flex-col">
-
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-dark-700">
-
         <div className="flex items-center gap-3">
-
           <div className="w-10 h-10 rounded-xl bg-accent-700 flex items-center justify-center">
-
             <Stethoscope className="w-5 h-5 text-white" />
-
           </div>
-
           <div>
-
-            <h1 className="text-white font-bold">
-              CLINIC-AI 24H
-            </h1>
-
-            <p className="text-xs text-gray-400">
-              Assistente Clínico
-            </p>
-
+            <h1 className="text-white font-bold">CLINIC-AI 24H</h1>
+            <p className="text-xs text-gray-400">Assistente Clínico</p>
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* CONTROLES DE FONTE + EXPORTAR + SAIR */}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-dark-700 rounded-xl border border-dark-600 overflow-hidden mr-2">
+            <button
+              onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
+              className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
+              title="Diminuir Letra"
+            >
+              A-
+            </button>
+            <div className="w-[1px] bg-dark-600" />
+            <button
+              onClick={() => setFontSize(prev => Math.min(prev + 2, 24))}
+              className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
+              title="Aumentar Letra"
+            >
+              A+
+            </button>
+          </div>
 
-          <button
-            onClick={exportPDF}
-            className="px-4 py-2 rounded-xl bg-accent-700 text-white text-sm"
-          >
+          <button onClick={exportPDF} className="px-4 py-2 rounded-xl bg-accent-700 text-white text-sm">
             Exportar PDF
           </button>
-
-          <button
-            onClick={() =>
-              supabase.auth.signOut()
-            }
-            className="px-4 py-2 rounded-xl bg-dark-700 text-white text-sm"
-          >
+          <button onClick={() => supabase.auth.signOut()} className="px-4 py-2 rounded-xl bg-dark-700 text-white text-sm">
             Sair
           </button>
-
         </div>
       </header>
 
       {/* FAVORITOS */}
       {favorites.length > 0 && (
         <div className="bg-dark-800 border-b border-dark-700 p-3 overflow-x-auto">
-
           <div className="flex gap-2">
-
-            {favorites.map(
-              (fav, index) => (
-                <div
-                  key={index}
-                  className="min-w-[250px] bg-dark-700 p-3 rounded-xl text-xs text-gray-300"
-                >
-                  {fav.substring(
-                    0,
-                    150
-                  )}
-                  ...
-                </div>
-              )
-            )}
-
+            {favorites.map((fav, index) => (
+              <div key={index} className="min-w-[250px] bg-dark-700 p-3 rounded-xl text-xs text-gray-300">
+                {fav.substring(0, 150)}...
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* CHAT */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
-
+      {/* Aplica o tamanho da fonte dinamicamente na caixa de mensagens */}
+      <main className="flex-1 overflow-y-auto p-4 space-y-4" style={{ fontSize: `${fontSize}px` }}>
         {messages.map((msg) => (
           <ChatMessage
             key={msg.id}
@@ -337,26 +239,15 @@ function App() {
 
         {isLoading && (
           <div className="flex gap-2 items-center text-gray-400">
-
             <Sparkles className="w-4 h-4 animate-pulse" />
-
             Pensando...
-
           </div>
         )}
-
         <div ref={messagesEndRef} />
-
       </main>
 
       {/* INPUT */}
-      <ChatInput
-        onSendMessage={
-          handleSendMessage
-        }
-        isLoading={isLoading}
-      />
-
+      <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
     </div>
   );
 }
