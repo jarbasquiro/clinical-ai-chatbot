@@ -40,16 +40,12 @@ if (pastaDistEfetiva) {
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
-// ==========================================
-// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS VIA PROCESSO
-// ==========================================
-const URL_REAL = process.env.SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = process.env.SUPABASE_ANON_KEY;
+// ============================================================
+// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS DE FORMA SEGURA VIA RENDER
+// ============================================================
+const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
-
-if (!KEY_REAL || !GROQ_KEY) {
-  console.warn("⚠️ ATENÇÃO: Variáveis de ambiente secretas não foram detectadas localmente!");
-}
 
 const supabase = createClient(URL_REAL, KEY_REAL);
 const groq = new Groq({ apiKey: GROQ_KEY });
@@ -112,7 +108,9 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// Rota do Chat protegida
+// ============================================================
+// 🤖 ROTA DO CHAT PROTEGIDA E COM INTEGRAÇÃO DE VÍDEOS REAIS
+// ============================================================
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -121,6 +119,30 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
+    // 1. Busca rápida na tabela do Supabase para ver se existe algum vídeo relacionado à pergunta
+    const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
+    
+    let videoEncontrado = null;
+    if (listaVideos && listaVideos.length > 0) {
+      // Normaliza o texto digitado pelo aluno para facilitar a busca por aproximação
+      const textoLimpo = message.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
+        .replace(/[^a-z0-9 ]/g, ""); // Remove símbolos
+
+      for (const vid of listaVideos) {
+        // Divide o termo cadastrado (ex: "auriculoterapia-insonia") em pedaços ["auriculoterapia", "insonia"]
+        const palavrasChave = vid.termo.split("-");
+        // Se o aluno digitou TODAS as palavras do termo na mesma frase, ativa o vídeo
+        const bateuTudo = palavrasChave.every(palavra => textoLimpo.includes(palavra));
+        
+        if (bateuTudo) {
+          videoEncontrado = vid;
+          break;
+        }
+      }
+    }
+
+    // 2. Chamar a Inteligência Artificial do Groq
     const completion = await groq.chat.completions.create({
       messages: [
         { 
@@ -133,7 +155,16 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
-    res.json({ response: respostaIA });
+    
+    // 3. Devolve a resposta com o objeto do vídeo anexado caso tenha encontrado na tabela
+    res.json({ 
+      response: respostaIA,
+      video: videoEncontrado ? {
+        url: videoEncontrado.youtube_url,
+        titulo: videoEncontrado.titulo
+      } : null
+    });
+
   } catch (error) {
     console.error("Erro interno na API do Groq:", error);
     res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
@@ -205,7 +236,7 @@ app.get("*", (req, res) => {
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
                     <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
-                    <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
+                    <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-VIndas</button>
                 </div>
             </div>
 
@@ -216,10 +247,9 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // No front-end dinâmico usamos variáveis injetadas de forma limpa
             const sbUrl = "${URL_REAL}";
-            const sbKey = \`\${window.location.origin === 'http://localhost:3000' ? '' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU'}\`;
-            const supabaseClient = window.supabase.createClient(sbUrl, sbKey || 'placeholder');
+            const sbKey = "${KEY_REAL}"; 
+            const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
             let falaAtual = null;
@@ -314,30 +344,25 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
-                let textoParaLer = elementoPai.innerText
-                    .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-Vindas", "")
-                    .replace("⏹️ Parar Leitura", "")
-                    .trim();
+                // Evita que o robô leia códigos ou os textos das janelas extras
+                let elementoClone = elementoPai.cloneNode(true);
+                const frames = elementoClone.querySelectorAll('iframe, button, div.video-wrapper');
+                frames.forEach(el => el.remove());
 
+                let textoParaLer = elementoClone.innerText.trim();
                 textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
 
                 if (listaVozes.length === 0) carregarVozes();
-                
                 const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
-                
                 let vozEscolhida = vozesBr.find(v => {
                     const nome = v.name.toLowerCase();
                     return nome.includes('daniel') || nome.includes('antonio') || nome.includes('francisco') || nome.includes('male') || nome.includes('homem') || nome.includes('microsoft ricardo');
                 });
 
-                if (!vozEscolhida && vozesBr.length > 0) {
-                    vozEscolhida = vozesBr[0];
-                }
-
+                if (!vozEscolhida && vozesBr.length > 0) vozEscolhida = vozesBr[0];
                 if (vozEscolhida) {
                     falaAtual.voice = vozEscolhida;
                     falaAtual.lang = vozEscolhida.lang;
@@ -350,18 +375,15 @@ app.get("*", (req, res) => {
                 botao.classList.remove("text-blue-500");
                 botao.classList.add("text-red-400", "font-bold");
 
-                falaAtual.onend = function() {
-                    resetarBotoesAudio();
-                };
-
+                falaAtual.onend = function() { resetarBotoesAudio(); };
                 window.speechSynthesis.speak(falaAtual);
             }
 
             function resetarBotoesAudio() {
                 const botoes = document.querySelectorAll('.btn-audio');
                 botoes.forEach(b => {
-                    if (b.innerText.includes("Boas-Vindas")) {
-                        b.innerHTML = "🔊 Ouvir Boas-Vindas";
+                    if (b.innerText.includes("Boas-VIndas")) {
+                        b.innerHTML = "🔊 Ouvir Boas-VIndas";
                     } else {
                         b.innerHTML = "🔊 Ouvir Resposta";
                     }
@@ -384,6 +406,38 @@ app.get("*", (req, res) => {
                 itens.forEach(item => {
                     item.style.fontSize = tamanhoAtual + 'px';
                 });
+            }
+
+            // 📺 Mágica para converter URL normal do YouTube em link embutido (embed)
+            function extrairIdYoutube(url) {
+                const regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[2].length === 11) ? match[2] : null;
+            }
+
+            // 📺 Função para abrir ou fechar o player na tela do aluno
+            window.alternarPlayerVideo = function(botao, urlVideo) {
+                const idVideo = extrairIdYoutube(urlVideo);
+                const pai = botao.parentElement;
+                let containerVideo = pai.querySelector('.video-wrapper');
+
+                if (containerVideo) {
+                    containerVideo.remove();
+                    botao.innerHTML = "📺 Assistir Prática Técnica";
+                    return;
+                }
+
+                if (!idVideo) {
+                    alert("Link do vídeo inválido no banco de dados.");
+                    return;
+                }
+
+                containerVideo = document.createElement('div');
+                containerVideo.className = "video-wrapper mt-3 w-full aspect-video rounded-xl overflow-hidden border border-slate-700 bg-black shadow-inner shadow-black/40";
+                containerVideo.innerHTML = \`<iframe class="w-full h-full" src="https://www.youtube.com/embed/${idVideo}?autoplay=1&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>\`;
+                
+                pai.appendChild(containerVideo);
+                botao.innerHTML = "❌ Fechar Player de Vídeo";
             }
 
             async function enviarMensagem() {
@@ -420,9 +474,23 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        let blocoHTML = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
+                        
+                        // 🎬 Se a rota trouxe informações de vídeo do banco de dados, desenha o botão do player
+                        if (dados.video && dados.video.url) {
+                            blocoHTML += \`
+                            <div class="mt-3 pt-3 border-t border-slate-800/80 text-left">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 block mb-1">🎥 Material Prático Disponível:</span>
+                                <p class="text-xs text-slate-400 mb-2 font-medium">\${dados.video.titulo}</p>
+                                <button onclick="alternarPlayerVideo(this, '\${dados.video.url}')" class="bg-slate-950 text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-500/30 font-medium px-3 py-1.5 rounded-lg text-xs transition active:scale-95 select-none inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/20">📺 Assistir Prática Técnica</button>
+                            </div>\`;
+                        }
+
+                        blocoHTML += \`<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        container.innerHTML += blocoHTML;
+
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \  \${dados.error}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
@@ -448,5 +516,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo!");
+  console.log("🚀 Servidor rodando com Webhook da Kiwify e Sistema de Vídeos Ativo!");
 });

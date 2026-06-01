@@ -40,42 +40,45 @@ if (pastaDistEfetiva) {
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
-const URL_REAL = 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU';
+// ==========================================
+// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS VIA PROCESSO
+// ==========================================
+const URL_REAL = process.env.SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+const KEY_REAL = process.env.SUPABASE_ANON_KEY;
+const GROQ_KEY = process.env.GROQ_API_KEY;
 
-// Usamos a KEY_REAL administrativa no backend para criar/deletar usuários direto via código de forma segura
-const supabase = createClient(URL_REAL, process.env.SUPABASE_SERVICE_KEY || KEY_REAL);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'gsk_ppeWEFnbjTBcoGSIe84WGdyb3FYqcakKIVamC0bOAcQXh1q91aI' });
+if (!KEY_REAL || !GROQ_KEY) {
+  console.warn("⚠️ ATENÇÃO: Variáveis de ambiente secretas não foram detectadas localmente!");
+}
+
+const supabase = createClient(URL_REAL, KEY_REAL);
+const groq = new Groq({ apiKey: GROQ_KEY });
 
 // ==========================================
-// 🚀 NOVA ROTA: WEBHOOK DA KIWIFY AUTOMÁTICO
+// 🚀 WEBHOOK DA KIWIFY AUTOMÁTICO
 // ==========================================
 app.post("/api/webhook/kiwify", async (req, res) => {
   try {
     const dadosKiwify = req.body;
     console.log("Recebido Webhook da Kiwify:", dadosKiwify);
 
-    // Captura os dados vitais enviados pela Kiwify
-    const statusPedido = dadosKiwify.order_status; // ex: "paid", "refunded", "canceled"
+    const statusPedido = dadosKiwify.order_status;
     const emailAluno = dadosKiwify.Customer?.email || dadosKiwify.email;
 
     if (!emailAluno) {
       return res.status(400).json({ error: "E-mail do aluno nao encontrado no disparo." });
     }
 
-    // CASO 1: Aluno comprou e o pagamento foi aprovado ("paid")
     if (statusPedido === "paid") {
       console.log(`Liberando acesso para o aluno: ${emailAluno}`);
 
-      // Cria o usuário de forma automatizada e já confirmada dentro do Supabase Auth
       const { data, error } = await supabase.auth.admin.createUser({
         email: emailAluno,
-        password: "clinicai24h", // Senha padrão inicial para todos os alunos (eles podem alterar depois)
+        password: "clinicai24h",
         email_confirm: true
       });
 
       if (error) {
-        // Se o erro for porque o usuário já existe (ex: renovou assinatura ou comprou de novo), ignoramos o erro
         if (error.message.includes("already exists") || error.status === 422) {
           console.log("Aluno ja possuía cadastro ativo no sistema.");
           return res.status(200).send("Usuário ja ativo.");
@@ -87,11 +90,9 @@ app.post("/api/webhook/kiwify", async (req, res) => {
       return res.status(200).send("Acesso de Aluno criado com sucesso!");
     }
 
-    // CASO 2: Aluno pediu reembolso, cancelou a assinatura ou falhou o pagamento ("refunded", "canceled", "chargedback")
     if (statusPedido === "refunded" || statusPedido === "canceled" || statusPedido === "chargedback") {
       console.log(`Bloqueando/Removendo acesso do inadimplente: ${emailAluno}`);
       
-      // Busca o ID do usuário para conseguir deletar da barreira de login
       const { data: listaUsuarios, error: errBusca } = await supabase.auth.admin.listUsers();
       const usuarioEncontrado = listaUsuarios?.users?.find(u => u.email.toLowerCase() === emailAluno.toLowerCase());
 
@@ -103,7 +104,6 @@ app.post("/api/webhook/kiwify", async (req, res) => {
       return res.status(200).send("Acesso revogado com sucesso.");
     }
 
-    // Para outros status da Kiwify (ex: aguardando boleto, processando pix), apenas responde OK sem mexer no acesso
     res.status(200).send("Webhook processado (sem alteração de status).");
 
   } catch (error) {
@@ -125,7 +125,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -203,8 +203,8 @@ app.get("*", (req, res) => {
             </div>
             
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
-                <div class="text-slate-300 message-item">
-                    <strong>Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
+                <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
+                    <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
                     <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
                 </div>
             </div>
@@ -216,9 +216,10 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
+            // No front-end dinâmico usamos variáveis injetadas de forma limpa
             const sbUrl = "${URL_REAL}";
-            const sbKey = "${KEY_REAL}";
-            const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+            const sbKey = \`\${window.location.origin === 'http://localhost:3000' ? '' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU'}\`;
+            const supabaseClient = window.supabase.createClient(sbUrl, sbKey || 'placeholder');
 
             let tamanhoAtual = 16;
             let falaAtual = null;
@@ -230,12 +231,10 @@ app.get("*", (req, res) => {
                     mostrarChat();
                     return;
                 }
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) {
-                    mostrarChat();
-                } else {
-                    mostrarLogin();
-                }
+                try {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) { mostrarChat(); } else { mostrarLogin(); }
+                } catch(e) { mostrarLogin(); }
             }
             verificarSessao();
 
@@ -261,21 +260,26 @@ app.get("*", (req, res) => {
                     return;
                 }
 
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-                if (error) {
-                    erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
+                        erroDiv.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.innerText = "Entrar na Plataforma";
+                    } else {
+                        mostrarChat();
+                    }
+                } catch(e) {
+                    erroDiv.innerText = "Erro ao conectar.";
                     erroDiv.classList.remove('hidden');
                     btn.disabled = false;
-                    btn.innerText = "Entrar na Plataforma";
-                } else {
-                    mostrarChat();
                 }
             }
 
             async function realizarLogout() {
                 localStorage.removeItem('admin_logado');
-                await supabaseClient.auth.signOut();
+                try { await supabaseClient.auth.signOut(); } catch(e){}
                 window.location.reload();
             }
 
@@ -316,7 +320,7 @@ app.get("*", (req, res) => {
                     .replace("⏹️ Parar Leitura", "")
                     .trim();
 
-                textoParaLer = textoParaLer.replace(/\\*/g, "");
+                textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
@@ -394,7 +398,7 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong>Você:</strong> \` + texto + \`</div></div>\`;
+                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> \` + texto + \`</div></div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
@@ -416,9 +420,9 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong>Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \  \${dados.error}</div>\`;
                     } else {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
