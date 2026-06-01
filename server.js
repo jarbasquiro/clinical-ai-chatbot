@@ -17,12 +17,9 @@ app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const baseDir = process.cwd();
 
-const publicPath = fs.existsSync(path.join(baseDir, "public")) 
-  ? path.join(baseDir, "public") 
-  : path.join(__dirname, "public");
-
+// FORÇANDO O CAMINHO DA PASTA PUBLIC SEM ERRO
+const publicPath = path.join(__dirname, "public");
 app.use(express.static(publicPath));
 
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -48,6 +45,7 @@ try {
   console.error("Erro critico nas chaves:", err.message);
 }
 
+// Webhook Kiwify
 app.post("/api/webhook/kiwify", async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(500).send("Banco de dados offline.");
@@ -71,6 +69,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
+// API do Chat com buscador de vídeos inteligente e flexível
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -111,7 +110,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, fornece respostas profundamente técnicas e estruturadas. Sempre separe os tópicos com uma linha em branco."
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, fornece respostas profundamente técnicas e estruturadas. Sempre separe os tópicos com uma linha em branco." 
         },
         { role: "user", content: message }
       ],
@@ -129,8 +128,9 @@ app.post("/api/chat", async (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
+// Rota coringa corrigida
 app.get("*", (req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
-app.listen(port, () => console.log("🚀 Servidor de API ativo com busca flexível de vídeos!"));
+app.listen(port, () => console.log("🚀 Servidor ativo!"));
