@@ -21,7 +21,7 @@ interface Message {
 function App() {
   const [session, setSession] = useState<any>(null);
   const [authorized, setAuthorized] = useState(false);
-  const [fontSize, setFontSize] = useState<number>(16); // Estado para controlar o tamanho da fonte
+  const [fontSize, setFontSize] = useState<number>(16); // Controla o tamanho da fonte
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -182,13 +182,12 @@ function App() {
           </div>
         </div>
 
-        {/* CONTROLES DE FONTE + EXPORTAR + SAIR */}
+        {/* BOTÕES DE FONTE REINJETADOS NO HEADER */}
         <div className="flex items-center gap-2">
           <div className="flex bg-dark-700 rounded-xl border border-dark-600 overflow-hidden mr-2">
             <button
               onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
               className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
-              title="Diminuir Letra"
             >
               A-
             </button>
@@ -196,7 +195,6 @@ function App() {
             <button
               onClick={() => setFontSize(prev => Math.min(prev + 2, 24))}
               className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
-              title="Aumentar Letra"
             >
               A+
             </button>
@@ -224,8 +222,7 @@ function App() {
         </div>
       )}
 
-      {/* CHAT */}
-      {/* Aplica o tamanho da fonte dinamicamente na caixa de mensagens */}
+      {/* CHAT COM TAMANHO DE FONTE DINÂMICO */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4" style={{ fontSize: `${fontSize}px` }}>
         {messages.map((msg) => (
           <ChatMessage
