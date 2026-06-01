@@ -21,7 +21,7 @@ interface Message {
 function App() {
   const [session, setSession] = useState<any>(null);
   const [authorized, setAuthorized] = useState(false);
-  const [fontSize, setFontSize] = useState<number>(16); // Controla o tamanho da fonte
+  const [fontSize, setFontSize] = useState<number>(16); // Controla o tamanho da fonte das mensagens
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -170,40 +170,23 @@ function App() {
 
   return (
     <div className="h-screen bg-dark-900 flex flex-col">
-      {/* HEADER */}
+      {/* HEADER LIMPO E COMPATÍVEL COM CELULAR */}
       <header className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-dark-700">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent-700 flex items-center justify-center">
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-white font-bold">CLINIC-AI 24H</h1>
-            <p className="text-xs text-gray-400">Assistente Clínico</p>
+            <h1 className="text-white font-bold text-sm sm:text-base">CLINIC-AI 24H</h1>
+            <p className="text-[10px] text-gray-400">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
           </div>
         </div>
 
-        {/* BOTÕES DE FONTE REINJETADOS NO HEADER */}
-        <div className="flex items-center gap-2">
-          <div className="flex bg-dark-700 rounded-xl border border-dark-600 overflow-hidden mr-2">
-            <button
-              onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
-              className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
-            >
-              A-
-            </button>
-            <div className="w-[1px] bg-dark-600" />
-            <button
-              onClick={() => setFontSize(prev => Math.min(prev + 2, 24))}
-              className="px-3 py-2 text-white text-xs font-bold hover:bg-dark-600 transition-colors"
-            >
-              A+
-            </button>
-          </div>
-
-          <button onClick={exportPDF} className="px-4 py-2 rounded-xl bg-accent-700 text-white text-sm">
-            Exportar PDF
+        <div className="flex gap-2">
+          <button onClick={exportPDF} className="px-3 py-1.5 rounded-xl bg-accent-700 text-white text-xs font-medium">
+            PDF
           </button>
-          <button onClick={() => supabase.auth.signOut()} className="px-4 py-2 rounded-xl bg-dark-700 text-white text-sm">
+          <button onClick={() => supabase.auth.signOut()} className="px-3 py-1.5 rounded-xl bg-dark-700 text-white text-xs font-medium">
             Sair
           </button>
         </div>
@@ -242,6 +225,26 @@ function App() {
         )}
         <div ref={messagesEndRef} />
       </main>
+
+      {/* PAINEL FIXO DOS BOTÕES DE TAMANHO DE FONTE (Logo acima do campo de texto) */}
+      <div className="px-4 py-2 bg-dark-800 border-t border-dark-700 flex items-center justify-center gap-4">
+        <span className="text-xs text-gray-400 font-medium">Tamanho da Letra:</span>
+        <div className="flex bg-dark-700 rounded-xl border border-dark-600 overflow-hidden shadow-md">
+          <button
+            onClick={() => setFontSize(prev => Math.max(prev - 2, 12))}
+            className="px-4 py-2 text-white text-sm font-bold hover:bg-dark-600 active:bg-dark-500 transition-colors"
+          >
+            A -
+          </button>
+          <div className="w-[1px] bg-dark-600" />
+          <button
+            onClick={() => setFontSize(prev => Math.min(prev + 2, 26))}
+            className="px-4 py-2 text-white text-sm font-bold hover:bg-dark-600 active:bg-dark-500 transition-colors"
+          >
+            A +
+          </button>
+        </div>
+      </div>
 
       {/* INPUT */}
       <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
