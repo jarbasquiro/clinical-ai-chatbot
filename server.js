@@ -19,28 +19,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
-const caminhosDist = [
-  path.join(baseDir, "dist"),
-  path.join(baseDir, "project", "dist"),
-  path.join(__dirname, "dist"),
-  path.join(__dirname, "..", "dist")
-];
-
-let pastaDistEfetiva = "";
-for (const caminho of caminhosDist) {
-  if (fs.existsSync(caminho) && fs.existsSync(path.join(caminho, "index.html"))) {
-    pastaDistEfetiva = caminho;
-    break;
-  }
-}
-
-app.use(express.static(path.join(baseDir, "public")));
-app.use(express.static(path.join(baseDir, "project", "public")));
-
 // ============================================================
-// 🛡️ SEGURANÇA MÁXIMA: NENHUMA CHAVE EXPOSTA NO TEXTO DO CÓDIGO
+// 🛡️ SEGURANÇA MÁXIMA: CONFIGURAÇÃO DE AMBIENTE BLINDADA
 // ============================================================
-const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://cygqomkyiheoijarrnsu.supabase.co";
 const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
@@ -114,7 +96,6 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
@@ -202,7 +183,6 @@ app.get("*", (req, res) => {
         </div>
 
         <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
-            
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <div class="w-5"></div>
@@ -235,8 +215,8 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            const sbUrl = "${URL_REAL}";
-            const sbKey = "${KEY_REAL}"; 
+            const sbUrl = '${URL_REAL}';
+            const sbKey = '${KEY_REAL}'; 
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
@@ -279,7 +259,7 @@ app.get("*", (req, res) => {
                 }
 
                 try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
                     if (error) {
                         erroDiv.innerText = 'Acesso recusado. Verifique os dados ou a assinatura.';
                         erroDiv.classList.remove('hidden');
@@ -339,13 +319,12 @@ app.get("*", (req, res) => {
                     .replace('▶️ Assistir Vídeo Prático', '')
                     .trim();
 
-                textoParaLer = textoParaLer.replace(/\*/g, '').replace(/#/g, '');
+                textoParaLer = textoParaLer.replace(/\\*/g, '').replace(/#/g, '');
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
 
                 if (listaVozes.length === 0) carregarVozes();
-                
                 const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
                 
                 let vozEscolhida = vozesBr.find(v => {
@@ -353,9 +332,7 @@ app.get("*", (req, res) => {
                     return nome.includes('daniel') || nome.includes('antonio') || nome.includes('francisco') || nome.includes('male') || nome.includes('homem') || nome.includes('microsoft ricardo');
                 });
 
-                if (!vozEscolhida && vozesBr.length > 0) {
-                    vozEscolhida = vozesBr[0];
-                }
+                if (!vozEscolhida && vozesBr.length > 0) vozEscolhida = vozesBr[0];
 
                 if (vozEscolhida) {
                     falaAtual.voice = vozEscolhida;
@@ -425,16 +402,13 @@ app.get("*", (req, res) => {
                 container.scrollTop = container.scrollHeight;
 
                 try {
-                    const urlAcesso = '/api/chat';
-                    
-                    const resposta = await fetch(urlAcesso, {
+                    const resposta = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: texto })
                     });
                     
                     const dados = await resposta.json();
-                    
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
 
@@ -446,12 +420,9 @@ app.get("*", (req, res) => {
                         }
 
                         htmlMensagem += '<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>';
-                        
                         container.innerHTML += htmlMensagem;
                     } else if (dados.error) {
                         container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ' + dados.error + '</div>';
-                    } else {
-                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta inválida.</div>';
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
@@ -475,5 +446,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo e Blindado!");
+  console.log("🚀 Servidor rodando limpo e com erro de sintaxe corrigido!");
 });
