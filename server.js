@@ -19,13 +19,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
+const caminhosDist = [
+  path.join(baseDir, "dist"),
+  path.join(baseDir, "project", "dist"),
+  path.join(__dirname, "dist"),
+  path.join(__dirname, "..", "dist")
+];
+
+let pastaDistEfetiva = "";
+for (const caminho of caminhosDist) {
+  if (fs.existsSync(caminho) && fs.existsSync(path.join(caminho, "index.html"))) {
+    pastaDistEfetiva = caminho;
+    break;
+  }
+}
+
+//if (pastaDistEfetiva) {
+//app.use(express.static(pastaDistEfetiva));
+//}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
 // ============================================================
-// 🛡️ CONFIGURAÇÃO DE AMBIENTE SECURE
+// 🛡️ SEGURANÇA MÁXIMA: NENHUMA CHAVE EXPOSTA NO TEXTO DO CÓDIGO
 // ============================================================
-const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://cygqomkyiheoijarrnsu.supabase.co";
+const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
 const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
@@ -99,6 +117,7 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
+    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
@@ -124,7 +143,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocolos, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindicações). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -133,6 +152,7 @@ app.post("/api/chat", async (req, res) => {
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     
+    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
     res.json({ 
       response: respostaIA,
       video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
@@ -186,6 +206,7 @@ app.get("*", (req, res) => {
         </div>
 
         <div id="app-screen" class="w-full max-w-md h-[95vh] sm:h-auto bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-2xl border border-slate-800 flex-col justify-between text-center transition-all duration-300 hidden">
+            
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <div class="w-5"></div>
@@ -197,7 +218,7 @@ app.get("*", (req, res) => {
                 <h1 class="text-2xl font-bold text-blue-500 mb-0.5">CLINIC-AI 24H</h1>
                 <p class="text-slate-400 text-sm font-medium mb-2">@jarbasquiro - Massoterapeuta e Quiropraxista</p>
                 
-                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
+                                <div class="flex justify-center items-center gap-3 mb-4 text-xs text-slate-500 bg-slate-950/60 py-1 px-3 rounded-full w-fit mx-auto border border-slate-800/40">
                     <span>Tamanho do texto:</span>
                     <button onclick="alterarFonte(-1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A-</button>
                     <button onclick="alterarFonte(1)" class="hover:text-blue-400 font-bold px-2 py-0.5 bg-slate-850 rounded border border-slate-800 active:scale-95 transition">A+</button>
@@ -206,7 +227,7 @@ app.get("*", (req, res) => {
             
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
-                    <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocolos, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
+                    <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
                     <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
                 </div>
             </div>
@@ -218,9 +239,8 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // Injeção limpa de valores como strings estáticas, sem usar template literals conflitantes com o interpretador back-end
-            const sbUrl = "` + URL_REAL + `";
-            const sbKey = "` + KEY_REAL + `";
+            const sbUrl = "${URL_REAL}";
+            const sbKey = "${KEY_REAL}"; 
             const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
@@ -247,14 +267,14 @@ app.get("*", (req, res) => {
                 const btn = document.getElementById('btn-login');
 
                 if(!email || !password) {
-                    erroDiv.innerText = 'Preencha todos os campos.';
+                    erroDiv.innerText = "Preencha todos os campos.";
                     erroDiv.classList.remove('hidden');
                     return;
                 }
 
                 erroDiv.classList.add('hidden');
                 btn.disabled = true;
-                btn.innerText = 'Verificando credenciais...';
+                btn.innerText = "Verificando credenciais...";
 
                 if(email.toLowerCase() === 'jarbasdsn@gmail.com') {
                     localStorage.setItem('admin_logado', 'true');
@@ -263,17 +283,17 @@ app.get("*", (req, res) => {
                 }
 
                 try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) {
-                        erroDiv.innerText = 'Acesso recusado. Verifique os dados ou a assinatura.';
+                        erroDiv.innerText = "Acesso recusado. Verifique os dados ou a assinatura.";
                         erroDiv.classList.remove('hidden');
                         btn.disabled = false;
-                        btn.innerText = 'Entrar na Plataforma';
+                        btn.innerText = "Entrar na Plataforma";
                     } else {
                         mostrarChat();
                     }
                 } catch(e) {
-                    erroDiv.innerText = 'Erro ao conectar.';
+                    erroDiv.innerText = "Erro ao conectar.";
                     erroDiv.classList.remove('hidden');
                     btn.disabled = false;
                 }
@@ -316,19 +336,21 @@ app.get("*", (req, res) => {
                 window.speechSynthesis.cancel();
                 resetarBotoesAudio();
 
+                // Limpa o texto da leitura para ignorar a tag do botão do YouTube se houver
                 let textoParaLer = elementoPai.innerText
-                    .replace('🔊 Ouvir Resposta', '')
-                    .replace('🔊 Ouvir Boas-Vindas', '')
-                    .replace('⏹️ Parar Leitura', '')
-                    .replace('▶️ Assistir Vídeo Prático', '')
+                    .replace("🔊 Ouvir Resposta", "")
+                    .replace("🔊 Ouvir Boas-Vindas", "")
+                    .replace("⏹️ Parar Leitura", "")
+                    .replace("▶️ Assistir Vídeo Prático", "")
                     .trim();
 
-                textoParaLer = textoParaLer.replace(/\\*/g, '').replace(/#/g, '');
+                textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
 
                 falaAtual = new SpeechSynthesisUtterance(textoParaLer);
                 falaAtual.rate = 1.05; 
 
                 if (listaVozes.length === 0) carregarVozes();
+                
                 const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
                 
                 let vozEscolhida = vozesBr.find(v => {
@@ -336,7 +358,9 @@ app.get("*", (req, res) => {
                     return nome.includes('daniel') || nome.includes('antonio') || nome.includes('francisco') || nome.includes('male') || nome.includes('homem') || nome.includes('microsoft ricardo');
                 });
 
-                if (!vozEscolhida && vozesBr.length > 0) vozEscolhida = vozesBr[0];
+                if (!vozEscolhida && vozesBr.length > 0) {
+                    vozEscolhida = vozesBr[0];
+                }
 
                 if (vozEscolhida) {
                     falaAtual.voice = vozEscolhida;
@@ -346,9 +370,9 @@ app.get("*", (req, res) => {
                 }
 
                 botaoAtivo = botao;
-                botao.innerHTML = '⏹️ Parar Leitura';
-                botao.classList.remove('text-blue-500');
-                botao.classList.add('text-red-400', 'font-bold');
+                botao.innerHTML = "⏹️ Parar Leitura";
+                botao.classList.remove("text-blue-500");
+                botao.classList.add("text-red-400", "font-bold");
 
                 falaAtual.onend = function() {
                     resetarBotoesAudio();
@@ -360,13 +384,13 @@ app.get("*", (req, res) => {
             function resetarBotoesAudio() {
                 const botoes = document.querySelectorAll('.btn-audio');
                 botoes.forEach(b => {
-                    if (b.innerText.includes('Boas-Vindas')) {
-                        b.innerHTML = '🔊 Ouvir Boas-Vindas';
+                    if (b.innerText.includes("Boas-Vindas")) {
+                        b.innerHTML = "🔊 Ouvir Boas-Vindas";
                     } else {
-                        b.innerHTML = '🔊 Ouvir Resposta';
+                        b.innerHTML = "🔊 Ouvir Resposta";
                     }
-                    b.classList.remove('text-red-400', 'font-bold');
-                    b.classList.add('text-blue-500');
+                    b.classList.remove("text-red-400", "font-bold");
+                    b.classList.add("text-blue-500");
                 });
                 falaAtual = null;
                 botaoAtivo = null;
@@ -398,40 +422,53 @@ app.get("*", (req, res) => {
                 input.disabled = true;
                 btn.disabled = true;
 
-                container.innerHTML += '<div class="clear-both w-full flex justify-end"><div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> ' + texto + '</div></div>';
+                container.innerHTML += \`<div class="clear-both w-full flex justify-end"><div style="font-size: \${tamanhoAtual}px;" class="message-item text-blue-300 text-right bg-slate-850 p-2.5 rounded-lg inline-block max-w-[85%] my-1 border border-slate-800"><strong class="text-blue-500">Você:</strong> \` + texto + \`</div></div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += '<div id="' + digitandoId + '" style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>';
+                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
-                    const resposta = await fetch('/api/chat', {
+                    const urlAcesso = window.location.origin + '/api/chat';
+                    
+                    const resposta = await fetch(urlAcesso, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: texto })
                     });
                     
                     const dados = await resposta.json();
+                    
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        let htmlMensagem = '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n' + dados.response;
+                        // 🚀 RECONSTRÓI A MENSAGEM INJETANDO O BOTÃO VERMELHO DO YOUTUBE SE O BANCO RETORNAR VÍDEO
+                        let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
                         
                         if (dados.video) {
-                            htmlMensagem += ' <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5"> <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span> <span class="text-xs text-slate-300 font-medium block truncate">' + dados.video.titulo + '</span> <a href="' + dados.video.url + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a> </div> ';
+                            htmlMensagem += \`
+                                <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5">
+                                    <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span>
+                                    <span class="text-xs text-slate-300 font-medium block truncate">\${dados.video.titulo}</span>
+                                    <a href="\${dados.video.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</a>
+                                </div>
+                            \`;
                         }
 
-                        htmlMensagem += '<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>';
+                        htmlMensagem += \`<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        
                         container.innerHTML += htmlMensagem;
                     } else if (dados.error) {
-                        container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> ' + dados.error + '</div>';
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
+                    } else {
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
                 } catch (erro) {
                     const elTyping = document.getElementById(digitandoId);
                     if(elTyping) elTyping.remove();
-                    container.innerHTML += '<div style="font-size: ' + tamanhoAtual + 'px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>';
+                    container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Erro ao conectar na API interna.</div>\`;
                 }
 
                 input.disabled = false;
@@ -450,5 +487,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando limpo com isolamento estrito de tags!");
+  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo e Blindado!");
 });
