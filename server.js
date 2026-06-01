@@ -364,7 +364,7 @@ app.get("*", (req, res) => {
                     falaAtual.lang = 'pt-BR';
                 }
 
-                botaoAtivo = block;
+                botaoAtivo = botao;
                 botao.innerHTML = '⏹️ Parar Leitura';
                 botao.classList.remove('text-blue-500');
                 botao.classList.add('text-red-400', 'font-bold');
