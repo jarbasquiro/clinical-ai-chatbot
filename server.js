@@ -119,7 +119,6 @@ app.post("/api/chat", async (req, res) => {
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
       
-      // 🚨 LINHA ESPIÃ: Mantida para monitoramento seguro no Render
       console.log("➡️ CONTEÚDO VINDO DO SUPABASE:", listaVideos);
       
       if (listaVideos && listaVideos.length > 0) {
@@ -152,7 +151,6 @@ app.post("/api/chat", async (req, res) => {
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
     
-    // Retorna a resposta e o objeto do vídeo encontrado para a interface renderizar
     res.json({ 
       response: respostaIA,
       video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
@@ -323,7 +321,7 @@ app.get("*", (req, res) => {
                 }
             }
             if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = carvoz;
+                speechSynthesis.onvoiceschanged = carregarVozes;
             }
 
             function controlarAudio(botao, elementoPai) {
@@ -472,27 +470,45 @@ app.get("*", (req, res) => {
                 container.scrollTop = container.scrollHeight;
             }
 
-            // ==========================================
-            // 📺 CONTROLE DO MODAL DE VÍDEO EMBUTIDO
-            // ==========================================
+            // ============================================================
+            // 📺 CONTROLE DO MODAL DE VÍDEO EMBUTIDO (AUTO-DETECÇÃO 16:9 / 9:16)
+            // ============================================================
             function abrirModalVideo(urlOriginal) {
-                let urlEmbed = urlOriginal;
-                if (urlOriginal.includes('watch?v=')) {
-                    urlEmbed = urlOriginal.replace('watch?v=', 'embed/');
-                } else if (urlOriginal.includes('youtu.be/')) {
-                    urlEmbed = urlOriginal.replace('youtu.be/', 'embed/');
+                let idVideo = "";
+                let ehShort = false;
+
+                // 🔍 Identifica se o link é do tipo Shorts ou comum e extrai o ID correto
+                if (urlOriginal.includes("/shorts/")) {
+                    idVideo = urlOriginal.split("/shorts/")[1].split("?")[0].split("&")[0];
+                    ehShort = true;
+                } else if (urlOriginal.includes("watch?v=")) {
+                    idVideo = urlOriginal.split("watch?v=")[1].split("&")[0];
+                } else if (urlOriginal.includes("youtu.be/")) {
+                    idVideo = urlOriginal.split("youtu.be/")[1].split("?")[0].split("&")[0];
+                } else if (urlOriginal.includes("/embed/")) {
+                    idVideo = urlOriginal.split("/embed/")[1].split("?")[0].split("&")[0];
                 }
-                
-                urlEmbed = urlEmbed.split('&')[0];
+
+                // 🛡️ Se falhar na extração por segurança, usa a URL original limpa
+                const urlEmbed = idVideo ? "https://www.youtube.com/embed/" + idVideo : urlOriginal;
+
+                // 📐 Define as dimensões CSS com base no formato do vídeo
+                // Se for Short (9:16), a janela fica em pé e estreita. Se for deitado (16:9), fica horizontal ampla.
+                const classeTamanho = ehShort 
+                    ? "w-full max-w-[340px] aspect-[9/16] h-[80vh]" 
+                    : "w-full max-w-2xl aspect-video";
+
+                // Remove modal duplicado caso exista
+                fecharModalVideo();
 
                 const divModal = document.createElement('div');
                 divModal.id = 'modal-video-container';
-                divModal.className = 'fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+                divModal.className = 'fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in';
                 divModal.innerHTML = \`
-                    <div class="w-full max-w-2xl bg-slate-900 rounded-2xl border border-slate-800 p-3 relative flex flex-col gap-3 shadow-2xl">
-                        <button onclick="fecharModalVideo()" class="absolute -top-10 right-0 sm:-right-4 text-slate-400 hover:text-white font-bold text-sm bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800 transition">✕ Fechar Vídeo</button>
-                        <div class="w-full aspect-video rounded-xl overflow-hidden bg-black border border-slate-950">
-                            <iframe src="\${urlEmbed}?autoplay=1" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <div class="\${classeTamanho} bg-slate-900 rounded-2xl border border-slate-800 p-2 relative flex flex-col shadow-2xl">
+                        <button onclick="fecharModalVideo()" class="absolute -top-11 right-0 text-slate-400 hover:text-white font-bold text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full shadow-lg transition active:scale-95">✕ Fechar Vídeo</button>
+                        <div class="w-full h-full rounded-xl overflow-hidden bg-black">
+                            <iframe src="\${urlEmbed}?autoplay=1&modestbranding=1&rel=0" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                         </div>
                     </div>
                 \`;
