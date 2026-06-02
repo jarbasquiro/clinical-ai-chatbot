@@ -121,7 +121,8 @@ app.post("/api/chat", async (req, res) => {
     let videoEncontrado = null;
     try {
       const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
-      
+      // 🚨 LINHA ESPIÃ: Vai nos mostrar no Render se veio algo do banco ou não
+console.log("➡️ CONTEÚDO VINDO DO SUPABASE:", listaVideos);
       if (listaVideos && listaVideos.length > 0) {
         const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
         
