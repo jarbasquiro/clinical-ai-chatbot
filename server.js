@@ -19,26 +19,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const baseDir = process.cwd();
 
-const caminhosDist = [
-  path.join(baseDir, "dist"),
-  path.join(baseDir, "project", "dist"),
-  path.join(__dirname, "dist"),
-  path.join(__dirname, "..", "dist")
-];
-
-let pastaDistEfetiva = "";
-for (const caminho of caminhosDist) {
-  if (fs.existsSync(caminho) && fs.existsSync(path.join(caminho, "index.html"))) {
-    pastaDistEfetiva = caminho;
-    break;
-  }
-}
-
+// Rotas de arquivos estáticos
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
+// Define o caminho exato da nova pasta de manobras
+const pastaManobras = path.join(baseDir, "public", "manobras");
+
 // ============================================================
-// 🛡️ SEGURANÇA MÁXIMA: NENHUMA CHAVE EXPOSTA NO TEXTO DO CÓDIGO
+// 🛡️ SEGURANÇA MÁXIMA: CREDENCIAIS PROTEGIDAS
 // ============================================================
 const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
 const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -105,7 +94,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// Rota do Chat protegida com Integração do Banco de Vídeos
+// Rota do Chat com Leitura Inteligente de Pasta Local de Imagens
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -114,28 +103,39 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
-    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
-    let videoEncontrado = null;
+    // 🚀 MAPEAMENTO AUTOMÁTICO DE IMAGENS NA PASTA LOCAL
+    let imagemEncontrada = null;
     try {
-      const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
-      
-      console.log("➡️ CONTEÚDO VINDO DO SUPABASE:", listaVideos);
-      
-      if (listaVideos && listaVideos.length > 0) {
+      if (fs.existsSync(pastaManobras)) {
+        const arquivos = fs.readdirSync(pastaManobras);
         const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
-        
-        for (const vid of listaVideos) {
-          if (!vid.termo) continue;
-          const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
-          
-          if (textoUsuario.includes(termoBanco) || termoBanco.includes(textoUsuario)) {
-            videoEncontrado = vid;
+
+        console.log("📂 Arquivos detectados na pasta manobras:", arquivos);
+
+        for (const arquivo of arquivos) {
+          // Ignora arquivos ocultos do sistema
+          if (arquivo.startsWith('.')) continue;
+
+          // Remove a extensão (.jpg, .png) e limpa acentos para comparar
+          const nomeSemExtensao = path.parse(arquivo).name;
+          const termoImagem = nomeSemExtensao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+
+          // Se a mensagem do aluno contiver o nome do arquivo, ou vice-versa, bateu!
+          if (textoUsuario.includes(termoImagem) || termoImagem.includes(textoUsuario)) {
+            // Transforma o nome do arquivo amigável em um título legível
+            const tituloBonito = nomeSemExtensao.replace(/-/g, " ").toUpperCase();
+            imagemEncontrada = {
+              url: `/manobras/${arquivo}`,
+              titulo: tituloBonito
+            };
             break;
           }
         }
+      } else {
+        console.log("⚠️ Alerta: A pasta public/manobras nao foi criada ou nao existe no servidor.");
       }
     } catch (e) {
-      console.error("Erro ao buscar tabela de videos:", e.message);
+      console.error("Erro ao varrer a pasta de imagens local:", e.message);
     }
 
     const completion = await groq.chat.completions.create({
@@ -153,7 +153,7 @@ app.post("/api/chat", async (req, res) => {
     
     res.json({ 
       response: respostaIA,
-      video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
+      image: imagemEncontrada // Retorna a imagem local encontrada
     });
   } catch (error) {
     console.error("Erro interno na API do Groq:", error);
@@ -338,7 +338,7 @@ app.get("*", (req, res) => {
                     .replace("🔊 Ouvir Resposta", "")
                     .replace("🔊 Ouvir Boas-VIndas", "")
                     .replace("⏹️ Parar Leitura", "")
-                    .replace("▶️ Assistir Vídeo Prático", "")
+                    .replace("🖼️ Ver Infográfico Técnico", "")
                     .trim();
 
                 textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
@@ -347,17 +347,13 @@ app.get("*", (req, res) => {
                 falaAtual.rate = 1.05; 
 
                 if (listaVozes.length === 0) carregarVozes();
-                
                 const vozesBr = listaVozes.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
-                
                 let vozEscolhida = vozesBr.find(v => {
                     const nome = v.name.toLowerCase();
                     return nome.includes('daniel') || nome.includes('antonio') || nome.includes('francisco') || nome.includes('male') || nome.includes('homem') || nome.includes('microsoft ricardo');
                 });
 
-                if (!vozEscolhida && vozesBr.length > 0) {
-                    vozEscolhida = vozesBr[0];
-                }
+                if (!vozEscolhida && vozesBr.length > 0) vozEscolhida = vozesBr[0];
 
                 if (vozEscolhida) {
                     falaAtual.voice = vozEscolhida;
@@ -420,7 +416,7 @@ app.get("*", (req, res) => {
                 container.scrollTop = container.scrollHeight;
 
                 const digitandoId = 'typing-' + Date.now();
-                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Pesquisando acervo...</div>\`;
+                container.innerHTML += \`<div id="\${digitandoId}" style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-400 italic animate-pulse clear-both my-1"><strong>Assistente:</strong> Buscando material didático...</div>\`;
                 container.scrollTop = container.scrollHeight;
 
                 try {
@@ -440,12 +436,12 @@ app.get("*", (req, res) => {
                     if (dados.response) {
                         let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
                         
-                        if (dados.video) {
+                        if (dados.image) {
                             htmlMensagem += \`
                                 <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5">
-                                    <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span>
-                                    <span class="text-xs text-slate-300 font-medium block truncate">\${dados.video.titulo}</span>
-                                    <button onclick="abrirModalVideo('\${dados.video.url}')" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</button>
+                                    <span class="text-[10px] text-blue-400 font-bold tracking-wide uppercase block">🖼️ Infográfico de Protocolo:</span>
+                                    <span class="text-xs text-slate-300 font-medium block truncate">\${dados.image.titulo}</span>
+                                    <button onclick="abrirModalImagem('\${dados.image.url}')" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">🖼️ Ver Infográfico Técnico</button>
                                 </div>
                             \`;
                         }
@@ -471,51 +467,26 @@ app.get("*", (req, res) => {
             }
 
             // ============================================================
-            // 📺 CONTROLE DO MODAL DE VÍDEO EMBUTIDO (AUTO-DETECÇÃO 16:9 / 9:16)
+            // 📺 CONTROLE DO MODAL DE EXIBIÇÃO DE IMAGENS TÉCNICAS
             // ============================================================
-            function abrirModalVideo(urlOriginal) {
-                let idVideo = "";
-                let ehShort = false;
-
-                // 🔍 Identifica se o link é do tipo Shorts ou comum e extrai o ID correto
-                if (urlOriginal.includes("/shorts/")) {
-                    idVideo = urlOriginal.split("/shorts/")[1].split("?")[0].split("&")[0];
-                    ehShort = true;
-                } else if (urlOriginal.includes("watch?v=")) {
-                    idVideo = urlOriginal.split("watch?v=")[1].split("&")[0];
-                } else if (urlOriginal.includes("youtu.be/")) {
-                    idVideo = urlOriginal.split("youtu.be/")[1].split("?")[0].split("&")[0];
-                } else if (urlOriginal.includes("/embed/")) {
-                    idVideo = urlOriginal.split("/embed/")[1].split("?")[0].split("&")[0];
-                }
-
-                // 🛡️ Se falhar na extração por segurança, usa a URL original limpa
-                const urlEmbed = idVideo ? "https://www.youtube.com/embed/" + idVideo : urlOriginal;
-
-                // 📐 Define as dimensões CSS com base no formato do vídeo
-                // Se for Short (9:16), a janela fica em pé e estreita. Se for deitado (16:9), fica horizontal ampla.
-                const classeTamanho = ehShort 
-                    ? "w-full max-w-[340px] aspect-[9/16] h-[80vh]" 
-                    : "w-full max-w-2xl aspect-video";
-
-                // Remove modal duplicado caso exista
-                fecharModalVideo();
+            function abrirModalImagem(urlImagem) {
+                fecharModalImagem();
 
                 const divModal = document.createElement('div');
-                divModal.id = 'modal-video-container';
-                divModal.className = 'fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in';
+                divModal.id = 'modal-video-container'; // Mantido ID para compatibilidade com CSS antigo
+                divModal.className = 'fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md';
                 divModal.innerHTML = \`
-                    <div class="\${classeTamanho} bg-slate-900 rounded-2xl border border-slate-800 p-2 relative flex flex-col shadow-2xl">
-                        <button onclick="fecharModalVideo()" class="absolute -top-11 right-0 text-slate-400 hover:text-white font-bold text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full shadow-lg transition active:scale-95">✕ Fechar Vídeo</button>
-                        <div class="w-full h-full rounded-xl overflow-hidden bg-black">
-                            <iframe src="\${urlEmbed}?autoplay=1&modestbranding=1&rel=0" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <div class="w-full max-w-xl max-h-[85vh] bg-slate-900 rounded-2xl border border-slate-800 p-2 relative flex flex-col shadow-2xl items-center justify-center">
+                        <button onclick="fecharModalImagem()" class="absolute -top-11 right-0 text-slate-400 hover:text-white font-bold text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full shadow-lg transition active:scale-95">✕ Fechar Imagem</button>
+                        <div class="w-full h-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
+                            <img src="\${urlImagem}" class="max-w-full max-h-[75vh] object-contain rounded-lg" alt="Manobra Técnica">
                         </div>
                     </div>
                 \`;
                 document.body.appendChild(divModal);
             }
 
-            function fecharModalVideo() {
+            function fecharModalImagem() {
                 const modal = document.getElementById('modal-video-container');
                 if (modal) {
                     modal.remove();

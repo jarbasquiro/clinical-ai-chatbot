@@ -34,22 +34,15 @@ for (const caminho of caminhosDist) {
   }
 }
 
-if (pastaDistEfetiva) {
-  app.use(express.static(pastaDistEfetiva));
-}
 app.use(express.static(path.join(baseDir, "public")));
 app.use(express.static(path.join(baseDir, "project", "public")));
 
-// ==========================================
-// 🛡️ SEGURANÇA MÁXIMA: CHAVES APENAS VIA PROCESSO
-// ==========================================
-const URL_REAL = process.env.SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
-const KEY_REAL = process.env.SUPABASE_ANON_KEY;
+// ============================================================
+// 🛡️ SEGURANÇA MÁXIMA: NENHUMA CHAVE EXPOSTA NO TEXTO DO CÓDIGO
+// ============================================================
+const URL_REAL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://cygqomkyiheoijarrnsu.supabase.co';
+const KEY_REAL = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
-
-if (!KEY_REAL || !GROQ_KEY) {
-  console.warn("⚠️ ATENÇÃO: Variáveis de ambiente secretas não foram detectadas localmente!");
-}
 
 const supabase = createClient(URL_REAL, KEY_REAL);
 const groq = new Groq({ apiKey: GROQ_KEY });
@@ -112,7 +105,7 @@ app.post("/api/webhook/kiwify", async (req, res) => {
   }
 });
 
-// Rota do Chat protegida
+// Rota do Chat protegida com Integração do Banco de Vídeos
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -121,11 +114,35 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia." });
     }
 
+    // 🚀 BUSCA INTELIGENTE DE VÍDEO NO SUPABASE
+    let videoEncontrado = null;
+    try {
+      const { data: listaVideos } = await supabase.from("videos").select("termo, youtube_url, titulo");
+      
+      console.log("➡️ CONTEÚDO VINDO DO SUPABASE:", listaVideos);
+      
+      if (listaVideos && listaVideos.length > 0) {
+        const textoUsuario = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+        
+        for (const vid of listaVideos) {
+          if (!vid.termo) continue;
+          const termoBanco = vid.termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").trim();
+          
+          if (textoUsuario.includes(termoBanco) || termoBanco.includes(textoUsuario)) {
+            videoEncontrado = vid;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao buscar tabela de videos:", e.message);
+    }
+
     const completion = await groq.chat.completions.create({
       messages: [
         { 
           role: "system", 
-          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Nunca fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
+          content: "Você é o CLINIC-AI, um agente de Inteligência Artificial e mentor técnico criado pelo Professor e Terapeuta Jarbas Garcia (@jarbasquiro). Seu objetivo exclusivo é servir como uma ferramenta de pesquisa científica, clínica e prática para ALUNOS E PROFISSIONAIS de massoterapia, quiropraxia, acupuntura, ozonioterapia e terapias manuais. Quando perguntado sobre ajustes, manobras, dores ou protocols, forneça respostas profundamente técnicas, anatômicas e estruturadas (indicando posicionamento do terapeuta, posicionamento do paciente, direção do vetor de força e contraindic microes). Foque no acervo de técnicas como Massagem Tradicional Tailandesa (Nuad Boran), Quiropraxia Clínica e Iridologia. PROIBIDO: Never fale sobre agendamentos de consultas, horários livres ou captação de clientes. Este é um ambiente estritamente de estudos e suporte profissional. Sempre separe os tópicos com uma linha em branco para garantir uma leitura espacial e limpa." 
         },
         { role: "user", content: message }
       ],
@@ -133,7 +150,11 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const respostaIA = completion.choices[0]?.message?.content || "Sem resposta.";
-    res.json({ response: respostaIA });
+    
+    res.json({ 
+      response: respostaIA,
+      video: videoEncontrado ? { url: videoEncontrado.youtube_url, titulo: videoEncontrado.titulo } : null
+    });
   } catch (error) {
     console.error("Erro interno na API do Groq:", error);
     res.status(500).json({ error: `Erro na IA: ${error.message || "Verifique chaves ou modelo"}` });
@@ -205,7 +226,7 @@ app.get("*", (req, res) => {
             <div id="chat-container" style="white-space: pre-wrap; font-size: 16px;" class="flex-1 border border-slate-800 bg-slate-950 rounded-xl p-3 sm:p-4 overflow-y-auto mb-4 text-left space-y-3 min-h-[180px] max-h-[55vh] sm:max-h-[350px]">
                 <div class="text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50 message-item">
                     <strong class="text-blue-500">Assistente:</strong> Olá! Bem-vindo à plataforma de pesquisa do CLINIC-AI 24H. Espaço dedicado a estudantes e profissionais para consulta de protocols, manobras e condutas em quiropraxia, massoterapia e terapias integrativas. Qual técnica ou caso clínico deseja pesquisar hoje?
-                    <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-Vindas</button>
+                    <button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-medium mt-2 focus:outline-none select-none">🔊 Ouvir Boas-VIndas</button>
                 </div>
             </div>
 
@@ -216,10 +237,9 @@ app.get("*", (req, res) => {
         </div>
 
         <script>
-            // No front-end dinâmico usamos variáveis injetadas de forma limpa
             const sbUrl = "${URL_REAL}";
-            const sbKey = \`\${window.location.origin === 'http://localhost:3000' ? '' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInN1YiI6ImN5Z3FvbWt5aWhlb2lqYXJybnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY4ODQwOTUsImV4cCI6MjAzMjQ2MDA5NX0.PB04DWKvLFMV1ffsrkJc6ktBo85w2HOnCzXJwRURmVU'}\`;
-            const supabaseClient = window.supabase.createClient(sbUrl, sbKey || 'placeholder');
+            const sbKey = "${KEY_REAL}"; 
+            const supabaseClient = window.supabase.createClient(sbUrl, sbKey);
 
             let tamanhoAtual = 16;
             let falaAtual = null;
@@ -316,8 +336,9 @@ app.get("*", (req, res) => {
 
                 let textoParaLer = elementoPai.innerText
                     .replace("🔊 Ouvir Resposta", "")
-                    .replace("🔊 Ouvir Boas-Vindas", "")
+                    .replace("🔊 Ouvir Boas-VIndas", "")
                     .replace("⏹️ Parar Leitura", "")
+                    .replace("▶️ Assistir Vídeo Prático", "")
                     .trim();
 
                 textoParaLer = textoParaLer.replace(/\\*/g, "").replace(/#/g, "");
@@ -350,10 +371,7 @@ app.get("*", (req, res) => {
                 botao.classList.remove("text-blue-500");
                 botao.classList.add("text-red-400", "font-bold");
 
-                falaAtual.onend = function() {
-                    resetarBotoesAudio();
-                };
-
+                falaAtual.onend = function() { resetarBotoesAudio(); };
                 window.speechSynthesis.speak(falaAtual);
             }
 
@@ -420,9 +438,23 @@ app.get("*", (req, res) => {
                     if(elTyping) elTyping.remove();
 
                     if (dados.response) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        let htmlMensagem = \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-slate-100 bg-slate-900/50 p-2.5 rounded-lg clear-both my-1 border border-slate-800/50"><strong class="text-blue-500">Assistente:</strong>\n\${dados.response}\`;
+                        
+                        if (dados.video) {
+                            htmlMensagem += \`
+                                <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-xl max-w-xs flex flex-col gap-1.5">
+                                    <span class="text-[10px] text-red-400 font-bold tracking-wide uppercase block">🎥 Demonstração Técnica Disponível:</span>
+                                    <span class="text-xs text-slate-300 font-medium block truncate">\${dados.video.titulo}</span>
+                                    <button onclick="abrirModalVideo('\${dados.video.url}')" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition mt-1">▶️ Assistir Vídeo Prático</button>
+                                </div>
+                            \`;
+                        }
+
+                        htmlMensagem += \`<button onclick="controlarAudio(this, this.parentElement)" class="btn-audio block text-blue-500 hover:text-blue-400 text-xs font-semibold mt-2 focus:outline-none select-none">🔊 Ouvir Resposta</button></div>\`;
+                        
+                        container.innerHTML += htmlMensagem;
                     } else if (dados.error) {
-                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \  \${dados.error}</div>\`;
+                        container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> \${dados.error}</div>\`;
                     } else {
                         container.innerHTML += \`<div style="font-size: \${tamanhoAtual}px;" class="message-item text-red-400 clear-both my-1"><strong>Assistente:</strong> Resposta invalida.</div>\`;
                     }
@@ -437,6 +469,58 @@ app.get("*", (req, res) => {
                 input.focus();
                 container.scrollTop = container.scrollHeight;
             }
+
+            // ============================================================
+            // 📺 CONTROLE DO MODAL DE VÍDEO EMBUTIDO (AUTO-DETECÇÃO 16:9 / 9:16)
+            // ============================================================
+            function abrirModalVideo(urlOriginal) {
+                let idVideo = "";
+                let ehShort = false;
+
+                // 🔍 Identifica se o link é do tipo Shorts ou comum e extrai o ID correto
+                if (urlOriginal.includes("/shorts/")) {
+                    idVideo = urlOriginal.split("/shorts/")[1].split("?")[0].split("&")[0];
+                    ehShort = true;
+                } else if (urlOriginal.includes("watch?v=")) {
+                    idVideo = urlOriginal.split("watch?v=")[1].split("&")[0];
+                } else if (urlOriginal.includes("youtu.be/")) {
+                    idVideo = urlOriginal.split("youtu.be/")[1].split("?")[0].split("&")[0];
+                } else if (urlOriginal.includes("/embed/")) {
+                    idVideo = urlOriginal.split("/embed/")[1].split("?")[0].split("&")[0];
+                }
+
+                // 🛡️ Se falhar na extração por segurança, usa a URL original limpa
+                const urlEmbed = idVideo ? "https://www.youtube.com/embed/" + idVideo : urlOriginal;
+
+                // 📐 Define as dimensões CSS com base no formato do vídeo
+                // Se for Short (9:16), a janela fica em pé e estreita. Se for deitado (16:9), fica horizontal ampla.
+                const classeTamanho = ehShort 
+                    ? "w-full max-w-[340px] aspect-[9/16] h-[80vh]" 
+                    : "w-full max-w-2xl aspect-video";
+
+                // Remove modal duplicado caso exista
+                fecharModalVideo();
+
+                const divModal = document.createElement('div');
+                divModal.id = 'modal-video-container';
+                divModal.className = 'fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in';
+                divModal.innerHTML = \`
+                    <div class="\${classeTamanho} bg-slate-900 rounded-2xl border border-slate-800 p-2 relative flex flex-col shadow-2xl">
+                        <button onclick="fecharModalVideo()" class="absolute -top-11 right-0 text-slate-400 hover:text-white font-bold text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full shadow-lg transition active:scale-95">✕ Fechar Vídeo</button>
+                        <div class="w-full h-full rounded-xl overflow-hidden bg-black">
+                            <iframe src="\${urlEmbed}?autoplay=1&modestbranding=1&rel=0" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    </div>
+                \`;
+                document.body.appendChild(divModal);
+            }
+
+            function fecharModalVideo() {
+                const modal = document.getElementById('modal-video-container');
+                if (modal) {
+                    modal.remove();
+                }
+            }
         </script>
     </body>
     </html>
@@ -448,6 +532,6 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo!");
+  console.log("🚀 Servidor rodando com Webhook da Kiwify Ativo e Blindado!");
 });
 
